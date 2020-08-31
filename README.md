@@ -46,10 +46,12 @@ const conf = {
         },   
         mongodb: {
             version: "4.4.0",           //Required
-            port: 27017                 //Optional | <= Default value
+            port: 27017,                //Optional | <= Default value
+            linuxDist: "ubuntu1804"     //Optional | <= Default value
         },
         mongodbDbTools: {
-            version: "100.1.1"          //Required
+            version: "100.1.1",         //Required
+            linuxDist: "ubuntu1804"     //Optional | <= Default value
         },
         postgresql: {
             version: "10.5-1",          //Required
