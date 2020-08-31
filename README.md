@@ -3,7 +3,7 @@ Easy setup of developer environment.
 
 ## Description
 1. Specify which binaries you require
-1. Specify configuration regarding those binaries
+1. Add configuration regarding those binaries
 1. Call install()
 1. Wait 1min
 1. Developer environment with application server, identity provider, database and more is now installed and configured.
