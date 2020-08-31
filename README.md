@@ -1,5 +1,12 @@
 # Developer environment
-Easy setup of developer environment
+Easy setup of developer environment.
+
+## Description
+1. Specify which binaries you require
+1. Specify configuration regarding those binaries
+1. Call install()
+1. Wait 1min
+1. Developer environment with application server, identity provider, database and more is now installed and configured.
 
 ## Installation
 ```
@@ -17,8 +24,8 @@ const conf = {
             version: "20.0.1.Final",    //Required
             username: "admin",          //Optional | <= Default value
             password: "password",       //Optional | <= Default value
-            debugPort: 8787,            //Optional | <= Default value
             portOffset: 0,              //Optional | <= Default value
+            debugPort: 8787,            //Optional | <= Default value
             Xms: "64m",                 //Optional | <= Default value
             Xmx: "2048m",               //Optional | <= Default value
             MetaspaceSize: "96M",       //Optional | <= Default value
@@ -58,8 +65,9 @@ const conf = {
 };
 
 devEnv.install(conf)
-    .then(options => {  //options is the config for each binary with default values added.
+    .then(options => {
         console.log("DONE");
+        //options is the config for each binary with default values added.
         console.log("Options", options);
     });
 ```

@@ -119,8 +119,8 @@ module.exports.id = "wildfly";
 const defaultConf = {
     username: "admin",
     password: "password",
-    debugPort: 8787,
     portOffset: 0,
+    debugPort: 8787,
     Xms: "64m",
     Xmx: "2048m",
     MetaspaceSize: "96M",
