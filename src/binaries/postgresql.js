@@ -76,7 +76,7 @@ const defaultConf = {
     username: "admin",
     password: "password",
     port: 5432,
-    db: "mydb"
+    db: "myDB"
 };
 
 const schema = {

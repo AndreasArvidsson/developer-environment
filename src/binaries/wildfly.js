@@ -3,7 +3,7 @@ const exec = require("util").promisify(require("child_process").exec);
 const fsPromises = require("fs").promises;
 const util = require("../util");
 
-module.exports = (conf, jdbcInstance) => {
+module.exports = (conf, jdbcInstance, postgresqlInstance) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = `wildfly-${opt.version}.zip`;
     const dir = util.getDir(filename);
@@ -16,10 +16,38 @@ module.exports = (conf, jdbcInstance) => {
             callback: (currentDir) => {
                 const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
                 return util.jbossCommand(jbossCli, opt.portOffset,
-                    `/subsystem=datasources/jdbc-driver=${jdbc.name}:add(driver-name=${jdbc.name}, driver-module-name=${jdbc.moduleName}, driver-xa-datasource-class-name=${jdbc.xaDataSourceClass})`
+                    `/subsystem=datasources/jdbc-driver=${jdbc.name}:add(`
+                    + `driver-name=${jdbc.name}, `
+                    + `driver-module-name=${jdbc.moduleName}, `
+                    + `driver-xa-datasource-class-name=${jdbc.xaDataSourceClass}`
+                    + `)`
                 );
             }
         });
+
+        if (opt.datasource) {
+            if (!postgresqlInstance) {
+                throw Error(`Wildfly datasource without postgresql`);
+            }
+            const p = postgresqlInstance.options;
+            seqExecutions.push({
+                name: `Add datasource: ${jdbc.name}`,
+                callback: (currentDir) => {
+                    const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
+                    return util.jbossCommand(jbossCli, opt.portOffset,
+                        `/subsystem=datasources/data-source=${opt.datasource}:add(`
+                        + `jndi-name=java:/${opt.datasource}, `
+                        + `driver-name=${jdbc.name}, `
+                        + `connection-url=jdbc:${jdbc.name}://localhost:${p.port}/${p.db}, `
+                        + `user-name=${p.username}, `
+                        + `password=${p.password}, `
+                        + `valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker, `
+                        + `validate-on-match=true`
+                        + `)`
+                    );
+                }
+            });
+        }
     }
 
     const propNames = Object.keys(opt.systemProperties);
@@ -71,6 +99,11 @@ module.exports = (conf, jdbcInstance) => {
         options: opt,
         isArchive: true,
         seqExecutions,
+        order: [
+            "datasource",
+            "memory",
+            "systemProperties"
+        ],
 
         startScript: {
             filename: "startWildfly.sh",
@@ -93,13 +126,14 @@ module.exports = (conf, jdbcInstance) => {
                 name: "Increase memory in standalone.conf",
                 callback: (currentDir) => {
                     return new Promise((resolve, reject) => {
+                        const mem = opt.memory;
                         const confFile = path.resolve(currentDir, dir, "bin/standalone.conf");
                         fsPromises.readFile(confFile, "utf-8")
                             .then(res => {
-                                res = res.replace("-Xms64m", `-Xms${opt.Xms}`);
-                                res = res.replace("-Xmx512m", `-Xmx${opt.Xmx}`);
-                                res = res.replace("-XX:MetaspaceSize=96M", `-XX:MetaspaceSize=${opt.MetaspaceSize}`);
-                                res = res.replace("-XX:MaxMetaspaceSize=256m", `-XX:MaxMetaspaceSize=${opt.MaxMetaspaceSize}`);
+                                res = res.replace("-Xms64m", `-Xms${mem.Xms}`);
+                                res = res.replace("-Xmx512m", `-Xmx${mem.Xmx}`);
+                                res = res.replace("-XX:MetaspaceSize=96M", `-XX:MetaspaceSize=${mem.MetaspaceSize}`);
+                                res = res.replace("-XX:MaxMetaspaceSize=256m", `-XX:MaxMetaspaceSize=${mem.MaxMetaspaceSize}`);
                                 fsPromises.writeFile(confFile, res)
                                     .then(resolve)
                                     .catch(reject);
@@ -117,14 +151,17 @@ module.exports = (conf, jdbcInstance) => {
 module.exports.id = "wildfly";
 
 const defaultConf = {
-    username: "admin",
-    password: "password",
     portOffset: 0,
     debugPort: 8787,
-    Xms: "64m",
-    Xmx: "2048m",
-    MetaspaceSize: "96M",
-    MaxMetaspaceSize: "1024m",
+    username: "admin",
+    password: "password",
+    datasource: null,
+    memory: {
+        Xms: "64m",
+        Xmx: "2048m",
+        MetaspaceSize: "96M",
+        MaxMetaspaceSize: "1024m",
+    },
     systemProperties: {}
 };
 
@@ -134,15 +171,23 @@ const schema = {
     additionalProperties: false,
     properties: {
         version: { type: "string" },
-        username: { type: "string" },
-        password: { type: "string" },
         debugPort: { type: "number" },
         portOffset: { type: "number" },
-        Xms: { type: "string" },
-        Xmx: { type: "string" },
-        MetaspaceSize: { type: "string" },
-        MaxMetaspaceSize: { type: "string" },
+        username: { type: "string" },
+        password: { type: "string" },
+        datasource: { type: ["string", "null"] },
+        memory: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+                Xms: { type: "string" },
+                Xmx: { type: "string" },
+                MetaspaceSize: { type: "string" },
+                MaxMetaspaceSize: { type: "string" }
+            }
+        },
         systemProperties: { type: "object" }
     }
 };
 schema.required = Object.keys(schema.properties);
+schema.properties.memory.required = Object.keys(schema.properties.memory.properties);

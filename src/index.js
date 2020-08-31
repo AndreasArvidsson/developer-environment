@@ -169,9 +169,9 @@ async function install(conf) {
         binariesDir = conf.binariesDir;
     }
     try {
-        const { binaries, options, names } = Binaries.get(conf.binaries);
+        const { binaries, options, names, order } = Binaries.get(conf.binaries);
 
-        util.printOptions(options, names, binariesDir);
+        util.printOptions(options, names, order, binariesDir);
         await util.queryContinue();
 
         await removeOldDirs(binaries);
@@ -203,10 +203,3 @@ module.exports = {
     install,
     keycloakExport
 };
-
-/*
-TODO
-// Parameterize DS
-// print "ADDING PERSISTENCE DATASOURCE TO WILDFLY"
-// sh $WILDFLY_HOME/bin/jboss-cli.sh -c --command="/subsystem=datasources/data-source=gssDS:add(jndi-name=java:/gssDS, driver-name=postgresql, connection-url=jdbc:postgresql://$HOST:$POSTGRESQL_PORT/$PERSISTENCE_DB_NAME, user-name=$POSTGRESQL_USER, password=$POSTGRESQL_PASSWORD, valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker, validate-on-match=true)"
-*/

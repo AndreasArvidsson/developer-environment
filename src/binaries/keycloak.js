@@ -23,6 +23,9 @@ module.exports = (conf) => {
         options: opt,
         isArchive: true,
         seqExecutions,
+        order: [
+            "jsonFile"
+        ],
 
         startScript: {
             filename: "startKeycloak.sh",

@@ -23,16 +23,18 @@ module.exports = {
         const binaries = [];
         const options = {};
         const names = {};
+        const order = {};
         for (let i in conf) {
             const binary = getBinary(conf, i);
             binaries.push(binary);
             options[i] = binary.options;
             names[i] = binary.name;
+            order[i] = binary.order || [];
         }
 
         binaries.sort(util.binaryComparator);
 
-        return { binaries, options, names };
+        return { binaries, options, names, order };
     }
 
 };
@@ -66,7 +68,9 @@ function getBinary(conf, id) {
         case wildfly.id:
             const jdbcConf = conf[jdbcPostgresql.id];
             const jdbcInstance = jdbcConf ? jdbcPostgresql(jdbcConf) : null;
-            return cons(c, jdbcInstance);
+            const postgresqlConf = conf[postgresql.id];
+            const postgresqlInstance = postgresqlConf ? postgresql(postgresqlConf) : null;
+            return cons(c, jdbcInstance, postgresqlInstance);
 
         default:
             return cons(c);

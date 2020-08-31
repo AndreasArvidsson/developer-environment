@@ -4,7 +4,7 @@ const fsPromises = require("fs").promises;
 const Ajv = require("ajv");
 const ProgressPromise = require("owp.progress-promise");
 
-const binComparator = comparator.bind(null,
+const binComparator = comparator(
     ["Wildfly", "Keycloak", "Keycloak Wildfly Adapter", "MongoDB", "MongoDB DB Tools", "PostgreSQL", "JDBC PostgreSQL"]
 );
 const binaryComparator = (a, b) => {
@@ -101,30 +101,23 @@ module.exports = {
         console.log("");
     },
 
-    printOptions: (options, names, binariesDir) => {
+    printOptions: (options, names, order, binariesDir) => {
         console.log("- Parameters\n");
         console.log(`Installation dir: ${path.resolve()}`);
         console.log(`Binaries dir: ${binariesDir}\n`);
 
         const binaries = Object.keys(options).map(key => ({
             name: names[key],
-            options: options[key]
+            options: options[key],
+            order: order[key]
         }));
 
         binaries.sort(binaryComparator);
 
-        const comp = comparator.bind(null,
-            ["version", "username", "password", "port", "portOffset", "debugPort"]
-        );
-        const optionsComparator = (a, b) => {
-            if (a === "systemProperties") return 1;
-            if (b === "systemProperties") return -1;
-            return comp(a, b);
-        }
-
         binaries.forEach(binary => {
             const o = binary.options;
-            const oKeys = Object.keys(o).sort(optionsComparator);
+            const comp = comparator(binary.order);
+            const oKeys = Object.keys(o).sort(comp);
             console.log(binary.name);
             oKeys.forEach(oKey => {
                 const value = o[oKey];
@@ -144,17 +137,27 @@ module.exports = {
 
 };
 
-function comparator(order, a, b) {
-    if (order.includes(a) && order.includes(b)) {
-        return order.indexOf(a) - order.indexOf(b);
+function comparator(order) {
+    order = [
+        "version",
+        "port",
+        "portOffset",
+        "debugPort",
+        "username",
+        "password"
+    ].concat(order);
+    return (a, b) => {
+        if (order.includes(a) && order.includes(b)) {
+            return order.indexOf(a) - order.indexOf(b);
+        }
+        else if (order.includes(a)) {
+            return -1;
+        }
+        else if (order.includes(b)) {
+            return 1;
+        }
+        return a.localeCompare(b);
     }
-    else if (order.includes(a)) {
-        return -1;
-    }
-    else if (order.includes(b)) {
-        return 1;
-    }
-    return a.localeCompare(b);
 }
 
 const keypress = () => {
