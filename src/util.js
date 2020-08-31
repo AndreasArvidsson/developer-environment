@@ -12,6 +12,7 @@ const binaryComparator = (a, b) => {
 }
 
 module.exports = {
+    binaryComparator,
 
     getOptions: (conf, defaultConf, schema) => {
         if (typeof conf === "string") {
@@ -134,22 +135,7 @@ module.exports = {
             });
             console.log("");
         });
-    },
-
-    binaryComparator
-
-    //TODO
-    // writeFilePermissions: (path, content, mode) => {
-    //     return new Promise((resolve, reject) => {
-    //         fsPromises.writeFile(path, content)
-    //             .then(() => {
-    //                 fsPromises.chmod(path, mode)
-    //                     .then(resolve)
-    //                     .catch(reject);
-    //             })
-    //             .catch(reject);
-    //     });
-    // }
+    }
 
 };
 

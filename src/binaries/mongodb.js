@@ -3,13 +3,6 @@ const os = require("os");
 const fsPromises = require("fs").promises;
 const util = require("../util");
 
-//TODO
-console.log("os.platform", os.platform())
-console.log("os.release", os.release())
-console.log("os.type", os.type())
-console.log("os.arch", os.arch())
-console.log("os.version", os.version())
-
 module.exports = (conf) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const { dir, filename, osName } = getNames(opt);
@@ -54,21 +47,23 @@ function getNames(opt) {
                 filename: `mongodb-windows-x86_64-${opt.version}.zip`
             }
         //OSX
-        case "darwin":
+        case "darwin": {
             const filename = `mongodb-macos-x86_64-${opt.version}.tgz`;
             return {
                 osName: "osx",
                 filename,
                 dir: util.getDir(filename)
             }
+        }
         //Linux
-        default:
+        default: {
             const filename = `mongodb-linux-x86_64-${opt.linuxDist}-${opt.version}.tgz`;
             return {
                 osName: "linux",
                 filename,
                 dir: util.getDir(filename)
             }
+        }
     }
 }
 
