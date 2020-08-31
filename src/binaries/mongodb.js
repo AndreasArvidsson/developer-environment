@@ -55,16 +55,18 @@ function getNames(opt) {
             }
         //OSX
         case "darwin":
+            const filename = `mongodb-macos-x86_64-${opt.version}.tgz`;
             return {
                 osName: "osx",
-                filename: `mongodb-macos-x86_64-${opt.version}.tgz`,
+                filename,
                 dir: util.getDir(filename)
             }
         //Linux
         default:
+            const filename = `mongodb-linux-x86_64-${opt.linuxDist}-${opt.version}.tgz`;
             return {
                 osName: "linux",
-                filename: `mongodb-linux-x86_64-${opt.linuxDist}-${opt.version}.tgz`,
+                filename,
                 dir: util.getDir(filename)
             }
     }
