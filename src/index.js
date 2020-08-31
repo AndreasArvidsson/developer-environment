@@ -206,10 +206,7 @@ module.exports = {
 
 /*
 TODO
-ident linux versions
-
-// Todo. Parameterize DS
+// Parameterize DS
 // print "ADDING PERSISTENCE DATASOURCE TO WILDFLY"
 // sh $WILDFLY_HOME/bin/jboss-cli.sh -c --command="/subsystem=datasources/data-source=gssDS:add(jndi-name=java:/gssDS, driver-name=postgresql, connection-url=jdbc:postgresql://$HOST:$POSTGRESQL_PORT/$PERSISTENCE_DB_NAME, user-name=$POSTGRESQL_USER, password=$POSTGRESQL_PASSWORD, valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker, validate-on-match=true)"
-
 */

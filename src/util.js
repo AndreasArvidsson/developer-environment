@@ -113,9 +113,14 @@ module.exports = {
 
         binaries.sort(binaryComparator);
 
-        const optionsComparator = comparator.bind(null,
+        const comp = comparator.bind(null,
             ["version", "username", "password", "port", "portOffset", "debugPort"]
         );
+        const optionsComparator = (a, b) => {
+            if (a === "systemProperties") return 1;
+            if (b === "systemProperties") return -1;
+            return comp(a, b);
+        }
 
         binaries.forEach(binary => {
             const o = binary.options;
