@@ -5,7 +5,7 @@ const exec = require("util").promisify(require("child_process").exec);
 const rm = require("owp.rm");
 const util = require("../util");
 
-module.exports = (conf) => {
+module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = "pgsql";
@@ -30,16 +30,13 @@ module.exports = (conf) => {
         executions: [
             {
                 name: "Initializing database cluster in /data dir",
-                callback: (currentDir) => {
+                callback: () => {
                     return initializeDatabaseCluster(currentDir, dir, opt);
                 }
-            }
-        ],
-
-        seqExecutions: [
+            },
             {
                 name: "Start service",
-                callback: (currentDir) => {
+                callback: () => {
                     const pgctl = path.resolve(currentDir, dir, "bin/pg_ctl");
                     const dataDir = path.resolve(currentDir, dir, "data");
                     return new Promise((resolve, reject) => {
@@ -52,21 +49,20 @@ module.exports = (conf) => {
             },
             {
                 name: `Create database: ${opt.db}`,
-                callback: (currentDir) => {
+                callback: () => {
                     const psql = path.resolve(currentDir, dir, "bin/psql");
                     return exec(`${psql} -c "CREATE DATABASE ${opt.db}" "user=${opt.username} dbname=postgres password=${opt.password}"`);
                 }
             },
             {
                 name: "Stop service",
-                callback: (currentDir) => {
+                callback: () => {
                     const pgctl = path.resolve(currentDir, dir, "bin/pg_ctl");
                     const dataDir = path.resolve(currentDir, dir, "data");
                     return exec(`${pgctl} -D ${dataDir} stop`);
                 }
             }
         ]
-
     };
 };
 

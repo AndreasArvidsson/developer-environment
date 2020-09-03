@@ -19,13 +19,13 @@ const constructors = {
 
 module.exports = {
 
-    get: (conf) => {
+    get: (conf, currentDir) => {
         const binaries = [];
         const options = {};
         const names = {};
         const order = {};
         for (let i in conf) {
-            const binary = getBinary(conf, i);
+            const binary = getBinary(conf, i, currentDir);
             binaries.push(binary);
             options[i] = binary.options;
             names[i] = binary.name;
@@ -39,7 +39,7 @@ module.exports = {
 
 };
 
-function getBinary(conf, id) {
+function getBinary(conf, id, currentDir) {
     const cons = constructors[id];
     if (!cons) {
         throw Error(`Unknown binary '${id}'`);
@@ -53,27 +53,30 @@ function getBinary(conf, id) {
             if (!mongoConf) {
                 throw Error(`${id} without ${mongodb.id}`);
             }
-            const mongoInstance = mongodb(mongoConf);
-            return cons(c, mongoInstance);
+            const mongoInstance = mongodb(mongoConf, currentDir);
+            return cons(c, currentDir, mongoInstance);
 
-        case jdbcPostgresql.id:
         case keycloakWildflyAdapter.id:
             const wildflyConf = conf[wildfly.id];
             if (!wildflyConf) {
                 throw Error(`${id} without ${wildfly.id}`);
             }
-            const wildflyInstance = wildfly(wildflyConf);
+            const wildflyInstance = wildfly(wildflyConf, currentDir, {});
             return cons(c, wildflyInstance);
 
-        case wildfly.id:
+        case wildfly.id: {
+            const adapterConf = conf[keycloakWildflyAdapter.id];
             const jdbcConf = conf[jdbcPostgresql.id];
-            const jdbcInstance = jdbcConf ? jdbcPostgresql(jdbcConf) : null;
             const postgresqlConf = conf[postgresql.id];
-            const postgresqlInstance = postgresqlConf ? postgresql(postgresqlConf) : null;
-            return cons(c, jdbcInstance, postgresqlInstance);
+            const misc = {
+                adapter: adapterConf ? keycloakWildflyAdapter(adapterConf, currentDir) : null,
+                jdbc: jdbcConf ? jdbcPostgresql(jdbcConf, currentDir) : null,
+                postgresql: postgresqlConf ? postgresql(postgresqlConf, currentDir) : null
+            };
+            return cons(c, currentDir, misc);
+        }
 
         default:
-            return cons(c);
-
+            return cons(c, currentDir);
     }
 }

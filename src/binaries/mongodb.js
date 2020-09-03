@@ -3,7 +3,7 @@ const os = require("os");
 const fsPromises = require("fs").promises;
 const util = require("../util");
 
-module.exports = (conf) => {
+module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const { dir, filename, osName } = getNames(opt);
 
@@ -25,7 +25,7 @@ module.exports = (conf) => {
         executions: [
             {
                 name: "Creating database /data directory",
-                callback: (currentDir) => {
+                callback: () => {
                     const dataDir = path.resolve(currentDir, dir, "data");
                     return fsPromises.mkdir(dataDir);
                 }

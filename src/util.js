@@ -1,5 +1,4 @@
 const path = require("path");
-const exec = require("util").promisify(require("child_process").exec);
 const fsPromises = require("fs").promises;
 const Ajv = require("ajv");
 const ProgressPromise = require("owp.progress-promise");
@@ -35,10 +34,6 @@ module.exports = {
 
     getDir: (filename) => {
         return filename.substring(0, filename.lastIndexOf("."));
-    },
-
-    jbossCommand: (jbossCli, portOffset, command) => {
-        return exec(`sh ${jbossCli} -c controller=localhost:${9990 + portOffset} command="${command}"`);
     },
 
     wait: (promise, seconds) => {

@@ -69,38 +69,15 @@ function runExecutions(binaries) {
     const executions = [];
     const promises = [];
     bins.forEach(binary => {
-        binary.executions.forEach(execution => {
-            executions.push({
-                binary,
-                execution
-            });
-            promises.push(execution.callback(currentDir, binariesDir));
-        });
-    });
-    if (!executions.length) {
-        return Promise.resolve();
-    }
-    return countdown.promises(
-        "Run parallel executions",
-        promises,
-        executionFormat.bind(null, executions)
-    );
-}
-
-function runSeqExecutions(binaries) {
-    const bins = binaries.filter(binary => binary.seqExecutions);
-    const executions = [];
-    const promises = [];
-    bins.forEach(binary => {
         const callbacks = [];
-        binary.seqExecutions.forEach((execution, i) => {
+        binary.executions.forEach((execution, i) => {
             executions.push({
                 binary,
                 execution
             });
             promises.push(new ProgressPromise((resolve, reject, progress) => {
                 callbacks.push(() => {
-                    const exPromise = execution.callback(currentDir, binariesDir);
+                    const exPromise = execution.callback(binariesDir);
                     if (exPromise.progress) {
                         exPromise.progress(progress);
                     }
@@ -124,7 +101,7 @@ function runSeqExecutions(binaries) {
         return Promise.resolve();
     }
     return countdown.promises(
-        "Run sequential executions",
+        "Run executions",
         promises,
         executionFormat.bind(null, executions)
     );
@@ -169,7 +146,7 @@ async function install(conf) {
         binariesDir = conf.binariesDir;
     }
     try {
-        const { binaries, options, names, order } = Binaries.get(conf.binaries);
+        const { binaries, options, names, order } = Binaries.get(conf.binaries, currentDir);
 
         util.printOptions(options, names, order, binariesDir);
         await util.queryContinue();
@@ -178,7 +155,6 @@ async function install(conf) {
         await downloadBinaries(binaries);
         await extractArchives(binaries);
         await runExecutions(binaries);
-        await runSeqExecutions(binaries);
         await createStartScripts(binaries);
 
         return options;
@@ -191,8 +167,8 @@ async function install(conf) {
 async function keycloakExport(conf) {
     const keycloak = require("./binaries/keycloak");
     try {
-        const binary = keycloak.export(conf);
-        await runSeqExecutions([binary]);
+        const binary = keycloak.export(conf, currentDir);
+        await runExecutions([binary]);
     }
     catch (err) {
         handleError(err);

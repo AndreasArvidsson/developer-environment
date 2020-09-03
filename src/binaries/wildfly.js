@@ -1,94 +1,109 @@
 const path = require("path");
-const exec = require("util").promisify(require("child_process").exec);
 const fsPromises = require("fs").promises;
 const util = require("../util");
+const Jboss = require("../Jboss");
 
-module.exports = (conf, jdbcInstance, postgresqlInstance) => {
+module.exports = (conf, currentDir, { adapter, jdbc, postgresql }) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = `wildfly-${opt.version}.zip`;
     const dir = util.getDir(filename);
-    const seqExecutions = [];
+    const jboss = new Jboss(path.resolve(currentDir, dir));
 
-    if (jdbcInstance) {
-        const jdbc = jdbcInstance.jdbc;
-        seqExecutions.push({
-            name: `Add JDBC driver: ${jdbc.name}`,
-            callback: (currentDir) => {
-                const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
-                return util.jbossCommand(jbossCli, opt.portOffset,
-                    `/subsystem=datasources/jdbc-driver=${jdbc.name}:add(`
-                    + `driver-name=${jdbc.name}, `
-                    + `driver-module-name=${jdbc.moduleName}, `
-                    + `driver-xa-datasource-class-name=${jdbc.xaDataSourceClass}`
-                    + `)`
-                );
+    const executions = [
+        {
+            name: `Add user: ${opt.username} / ${opt.password}`,
+            callback: () => jboss.addUser(opt.username, opt.password)
+        },
+        {
+            name: "Increase memory in standalone.conf",
+            callback: () => {
+                return new Promise((resolve, reject) => {
+                    const mem = opt.memory;
+                    const confFile = path.resolve(currentDir, dir, "bin/standalone.conf");
+                    fsPromises.readFile(confFile, "utf-8")
+                        .then(res => {
+                            res = res.replace("-Xms64m", `-Xms${mem.Xms}`);
+                            res = res.replace("-Xmx512m", `-Xmx${mem.Xmx}`);
+                            res = res.replace("-XX:MetaspaceSize=96M", `-XX:MetaspaceSize=${mem.MetaspaceSize}`);
+                            res = res.replace("-XX:MaxMetaspaceSize=256m", `-XX:MaxMetaspaceSize=${mem.MaxMetaspaceSize}`);
+                            fsPromises.writeFile(confFile, res)
+                                .then(resolve)
+                                .catch(reject);
+                        })
+                        .catch(reject);
+                });
             }
+        }
+    ];
+
+    Object.keys(opt.systemProperties).forEach(k => {
+        executions.push({
+            name: `Add system property: ${k}`,
+            callback: () => jboss.addSystemProperty(k, opt.systemProperties[k])
         });
+    });
+
+    if (adapter) {
+        executions.push({
+            name: "Install Keycloak adapter",
+            callback: () => jboss.installAdapter()
+        });
+    }
+
+    if (jdbc) {
+        const j = jdbc.jdbc;
+
+        executions.push(
+            {
+                name: "Install JDBC module",
+                callback: (binariesDir) => {
+                    return installModule(
+                        path.resolve(currentDir, dir, "modules/org/postgresql/main"),
+                        path.resolve(binariesDir, jdbc.filename),
+                        jdbc.filename,
+                        `<?xml version="1.0" ?>
+<module xmlns="urn:jboss:module:1.3" name="${j.moduleName}">
+    <resources>
+        <resource-root path="${jdbc.filename}"/>
+    </resources>
+    <dependencies>
+        <module name="javax.api"/>
+        <module name="javax.transaction.api"/>
+    </dependencies>
+</module>`
+                    );
+                }
+            },
+            {
+                name: `Add JDBC driver: ${j.name}`,
+                callback: () =>
+                    jboss.addJdbcDriver(j.name, {
+                        "driver-name": j.name,
+                        "driver-module-name": j.moduleName,
+                        "driver-xa-datasource-class-name": j.xaDataSourceClass
+                    })
+            });
 
         if (opt.datasource) {
-            if (!postgresqlInstance) {
+            if (!postgresql) {
                 throw Error(`Wildfly datasource without postgresql`);
             }
-            const p = postgresqlInstance.options;
-            seqExecutions.push({
+            executions.push({
                 name: `Add datasource: ${jdbc.name}`,
-                callback: (currentDir) => {
-                    const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
-                    return util.jbossCommand(jbossCli, opt.portOffset,
-                        `/subsystem=datasources/data-source=${opt.datasource}:add(`
-                        + `jndi-name=java:/${opt.datasource}, `
-                        + `driver-name=${jdbc.name}, `
-                        + `connection-url=jdbc:${jdbc.name}://localhost:${p.port}/${p.db}, `
-                        + `user-name=${p.username}, `
-                        + `password=${p.password}, `
-                        + `valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker, `
-                        + `validate-on-match=true`
-                        + `)`
-                    );
+                callback: () => {
+                    const p = postgresql.options;
+                    return jboss.addDataSource(opt.datasource, {
+                        "jndi-name": `java:/${opt.datasource}`,
+                        "driver-name": jdbc.name,
+                        "connection-url": `jdbc:${jdbc.name}://localhost:${p.port}/${p.db}`,
+                        "user-name": p.username,
+                        password: p.password,
+                        "valid-connection-checker-class-name": "org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker",
+                        "validate-on-match": true
+                    });
                 }
             });
         }
-    }
-
-    const propNames = Object.keys(opt.systemProperties);
-    if (propNames.length) {
-        seqExecutions.push({
-            name: `Add system properties: ${propNames.join(", ")}`,
-            callback: (currentDir) => {
-                const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
-                const promises = [];
-                for (let i in opt.systemProperties) {
-                    const command = `/system-property=${i}:add(value=${opt.systemProperties[i]})`;
-                    promises.push(util.jbossCommand(jbossCli, opt.portOffset, command));
-                }
-                return Promise.all(promises);
-            }
-        });
-    }
-
-    if (seqExecutions.length) {
-        seqExecutions.unshift({
-            name: "Start service",
-            callback: (currentDir) => {
-                const standalone = path.resolve(currentDir, dir, "bin/standalone.sh");
-                //Wait 10sec for service to start.
-                return util.waitIgnoreThen(
-                    exec(`sh ${standalone} -Djboss.socket.binding.port-offset=${opt.portOffset}`),
-                    5
-                );
-            }
-        });
-        seqExecutions.push({
-            name: "Stop service",
-            callback: (currentDir) => {
-                const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
-                //Wait 1sec for service to stop.
-                return util.wait(
-                    util.jbossCommand(jbossCli, opt.portOffset, ":shutdown"),
-                    1
-                );
-            }
-        });
     }
 
     return {
@@ -98,53 +113,18 @@ module.exports = (conf, jdbcInstance, postgresqlInstance) => {
         url: `https://download.jboss.org/wildfly/${opt.version}/${filename}`,
         options: opt,
         isArchive: true,
-        seqExecutions,
+        executions,
         order: [
             "datasource",
             "memory",
             "systemProperties"
         ],
-
         startScript: {
             filename: "startWildfly.sh",
             content: `sh ${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
                 + ` --debug ${opt.debugPort}`
-        },
-
-        executions: [
-
-            {
-                name: `Add user: ${opt.username} / ${opt.password}`,
-                callback: (currentDir) => {
-                    const scriptFile = path.resolve(currentDir, dir, "bin/add-user.sh");
-                    return exec(`sh ${scriptFile} ${opt.username} ${opt.password}`);
-                }
-            },
-
-            {
-                name: "Increase memory in standalone.conf",
-                callback: (currentDir) => {
-                    return new Promise((resolve, reject) => {
-                        const mem = opt.memory;
-                        const confFile = path.resolve(currentDir, dir, "bin/standalone.conf");
-                        fsPromises.readFile(confFile, "utf-8")
-                            .then(res => {
-                                res = res.replace("-Xms64m", `-Xms${mem.Xms}`);
-                                res = res.replace("-Xmx512m", `-Xmx${mem.Xmx}`);
-                                res = res.replace("-XX:MetaspaceSize=96M", `-XX:MetaspaceSize=${mem.MetaspaceSize}`);
-                                res = res.replace("-XX:MaxMetaspaceSize=256m", `-XX:MaxMetaspaceSize=${mem.MaxMetaspaceSize}`);
-                                fsPromises.writeFile(confFile, res)
-                                    .then(resolve)
-                                    .catch(reject);
-                            })
-                            .catch(reject);
-                    });
-                }
-            }
-
-        ]
-
+        }
     };
 };
 
@@ -189,5 +169,23 @@ const schema = {
         systemProperties: { type: "object" }
     }
 };
+
 schema.required = Object.keys(schema.properties);
 schema.properties.memory.required = Object.keys(schema.properties.memory.properties);
+
+function installModule(dir, binarySource, binaryFilename, xml) {
+    return new Promise((resolve, reject) => {
+        const xmlFile = path.resolve(dir, "module.xml");
+        const binaryTarget = path.resolve(dir, binaryFilename);
+        fsPromises.mkdir(dir, { recursive: true })
+            .then(() => {
+                Promise.all([
+                    fsPromises.writeFile(xmlFile, xml),
+                    fsPromises.copyFile(binarySource, binaryTarget)
+                ])
+                    .then(resolve)
+                    .catch(reject);
+            })
+            .catch(reject);
+    })
+}

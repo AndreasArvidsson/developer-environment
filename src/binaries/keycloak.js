@@ -1,17 +1,25 @@
 const path = require("path");
 const exec = require("util").promisify(require("child_process").exec);
 const util = require("../util");
+const Jboss = require("../Jboss");
 
-module.exports = (conf) => {
+module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = `keycloak-${opt.version}.zip`;
     const dir = util.getDir(filename);
-    const seqExecutions = [];
+    const jboss = new Jboss(path.resolve(currentDir, dir));
+
+    const executions = [
+        {
+            name: `Add user: ${opt.username} / ${opt.password}`,
+            callback: () => jboss.addUserKeycloak(opt.username, opt.password)
+        }
+    ];
 
     if (opt.jsonFile) {
-        seqExecutions.push(
-            getMigrationExecution(dir, opt, true),
-            getStopServiceExecution(dir, opt)
+        executions.push(
+            getMigrationExecution(path.resolve(currentDir, dir), opt, true),
+            getStopServiceExecution(jboss, opt)
         );
     }
 
@@ -22,38 +30,27 @@ module.exports = (conf) => {
         url: `https://downloads.jboss.org/keycloak/${opt.version}/${filename}`,
         options: opt,
         isArchive: true,
-        seqExecutions,
+        executions,
         order: [
             "jsonFile"
         ],
-
         startScript: {
             filename: "startKeycloak.sh",
             content: `sh ${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
-        },
-
-        executions: [
-            {
-                name: `Add user: ${opt.username} / ${opt.password}`,
-                callback: (currentDir) => {
-                    const addUser = path.resolve(currentDir, dir, "bin/add-user-keycloak.sh");
-                    return exec(`sh ${addUser} -u ${opt.username} -p ${opt.password}`);
-                }
-            }
-        ]
-
+        }
     };
 };
 
 module.exports.id = "keycloak";
 
-module.exports.export = (conf) => {
+module.exports.export = (conf, currentDir) => {
     const instance = module.exports(conf);
     const opt = util.getOptions(conf, exportDefaultConf);
-    instance.seqExecutions = [
-        getMigrationExecution(instance.dir, opt, false),
-        getStopServiceExecution(instance.dir, opt)
+    const dir = path.resolve(currentDir, instance.dir);
+    instance.executions = [
+        getMigrationExecution(dir, opt, false),
+        getStopServiceExecution(jboss, opt)
     ];
     return instance;
 }
@@ -62,8 +59,8 @@ function getMigrationExecution(dir, opt, doImport) {
     const action = doImport ? "import" : "export";
     return {
         name: `Start service with json ${action}`,
-        callback: (currentDir) => {
-            const standalone = path.resolve(currentDir, dir, "bin/standalone.sh");
+        callback: () => {
+            const standalone = path.resolve(dir, "bin/standalone.sh");
             let cmd = `sh ${standalone} `
                 + `-Djboss.socket.binding.port-offset=${opt.portOffset} `
                 + `-Dkeycloak.migration.action=${action} `
@@ -85,14 +82,13 @@ function getMigrationExecution(dir, opt, doImport) {
     }
 }
 
-function getStopServiceExecution(dir, opt) {
+function getStopServiceExecution(jboss, opt) {
     return {
         name: "Stop service",
-        callback: (currentDir) => {
-            const jbossCli = path.resolve(currentDir, dir, "bin/jboss-cli.sh");
+        callback: () => {
             //Wait 1sec for service to stop.
             return util.wait(
-                util.jbossCommand(jbossCli, opt.portOffset, ":shutdown"),
+                jboss.shutdown(opt.portOffset),
                 1
             );
         }

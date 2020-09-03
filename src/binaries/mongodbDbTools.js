@@ -4,7 +4,7 @@ const rm = require("owp.rm");
 const util = require("../util");
 const mv = require("../mv");
 
-module.exports = (conf, mongodb) => {
+module.exports = (conf, currentDir, mongodb) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = util.getDir(filename);
@@ -20,7 +20,7 @@ module.exports = (conf, mongodb) => {
         executions: [
             {
                 name: "Moving content to MongoDB/bin directory",
-                callback: (currentDir) => {
+                callback: () => {
                     const from = path.resolve(currentDir, dir, "bin");
                     const to = path.resolve(currentDir, mongodb.dir, "bin");
                     return new Promise((resolve, reject) => {
