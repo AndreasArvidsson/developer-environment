@@ -5,7 +5,7 @@ const Jboss = require("../Jboss");
 
 module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);
-    const filename = `keycloak-${opt.version}.zip`;
+    const filename = getFilename(opt);
     const dir = util.getDir(filename);
     const jboss = new Jboss(path.resolve(currentDir, dir));
 
@@ -45,14 +45,17 @@ module.exports = (conf, currentDir) => {
 module.exports.id = "keycloak";
 
 module.exports.export = (conf, currentDir) => {
-    const instance = module.exports(conf);
     const opt = util.getOptions(conf, exportDefaultConf);
-    const dir = path.resolve(currentDir, instance.dir);
-    instance.executions = [
-        getMigrationExecution(dir, opt, false),
-        getStopServiceExecution(jboss, opt)
-    ];
-    return instance;
+    const filename = getFilename(opt);
+    const dir = path.resolve(currentDir, util.getDir(filename));
+    const jboss = new Jboss(path.resolve(currentDir, dir));
+    return {
+        name: "Keycloak-export",
+        executions: [
+            getMigrationExecution(dir, opt, false),
+            getStopServiceExecution(jboss, opt)
+        ]
+    };
 }
 
 function getMigrationExecution(dir, opt, doImport) {
@@ -95,6 +98,10 @@ function getStopServiceExecution(jboss, opt) {
     };
 }
 
+function getFilename(opt) {
+    return `keycloak-${opt.version}.zip`;
+}
+
 const defaultConf = {
     username: "admin",
     password: "password",
@@ -119,4 +126,5 @@ const schema = {
         jsonFile: { type: ["string", "null"] }
     }
 };
+
 schema.required = Object.keys(schema.properties);

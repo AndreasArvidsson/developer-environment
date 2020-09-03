@@ -54,6 +54,7 @@ const schema = {
         linuxDist: { type: "string" }
     }
 };
+
 schema.required = Object.keys(schema.properties);
 
 function getFilename(opt) {
