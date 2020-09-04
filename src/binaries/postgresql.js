@@ -69,6 +69,7 @@ module.exports = (conf, currentDir) => {
 module.exports.id = "postgresql";
 
 const defaultConf = {
+    install: true,
     username: "admin",
     password: "password",
     port: 5432,
@@ -81,6 +82,7 @@ const schema = {
     additionalProperties: false,
     properties: {
         version: { type: "string" },
+        install: { type: "boolean" },
         username: { type: "string" },
         password: { type: "string" },
         port: { type: "number" },

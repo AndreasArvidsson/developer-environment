@@ -1,9 +1,12 @@
+const xml2js = require("xml2js");
 const path = require("path");
 const exec = require("util").promisify(require("child_process").exec);
+const fsPromises = require("fs").promises;
 
 module.exports = class Jboss {
 
     constructor(jbossHome) {
+        this.jbossHome = jbossHome;
         this.dir = path.resolve(jbossHome, "bin");
         this.cli = path.resolve(this.dir, "jboss-cli.sh");
     }
@@ -62,6 +65,26 @@ module.exports = class Jboss {
         );
     }
 
+    async installModule(binarySource, xml) {
+        const moduleDir = await getModuleDir(xml);
+        const dir = path.resolve(this.jbossHome, "modules", moduleDir, "main");
+        const xmlFile = path.resolve(dir, "module.xml");
+        const filename = path.basename(binarySource);
+        const binaryTarget = path.resolve(dir, filename);
+        await fsPromises.mkdir(dir, { recursive: true });
+        await fsPromises.writeFile(xmlFile, xml);
+        await fsPromises.copyFile(binarySource, binaryTarget);
+    }
+
+    async updateStandaloneConf(replace) {
+        const confFile = path.resolve(this.dir, "standalone.conf");
+        let content = await fsPromises.readFile(confFile, "utf-8");
+        for (let i in replace) {
+            content = content.replace(i, replace[i]);
+        }
+        await fsPromises.writeFile(confFile, content);
+    }
+
 }
 
 function toCSV(obj) {
@@ -69,4 +92,16 @@ function toCSV(obj) {
     return Object.keys(obj)
         .map(k => `${k}=${obj[k]}`)
         .join(", ");
+}
+
+function getModuleDir(xml) {
+    const parser = new xml2js.Parser();
+    return new Promise((resolve, reject) => {
+        parser.parseString(xml, (err, result) => {
+            if (err) {
+                reject(er);
+            }
+            resolve(result.module.$.name.split(".").join("/"));
+        });
+    });
 }

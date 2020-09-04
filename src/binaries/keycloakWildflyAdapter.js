@@ -1,6 +1,6 @@
 const util = require("../util");
 
-module.exports = (conf, wildfly) => {
+module.exports = (conf, wildflyDir) => {
     const opt = util.getOptions(conf, null, schema);
     const filename = `keycloak-wildfly-adapter-dist-${opt.version}.zip`;
     return {
@@ -9,7 +9,7 @@ module.exports = (conf, wildfly) => {
         url: `https://downloads.jboss.org/keycloak/${opt.version}/adapters/keycloak-oidc/${filename}`,
         options: opt,
         isArchive: true,
-        extractTo: wildfly ? wildfly.dir : null
+        extractTo: wildflyDir
     };
 };
 

@@ -110,22 +110,8 @@ module.exports = {
         binaries.sort(binaryComparator);
 
         binaries.forEach(binary => {
-            const o = binary.options;
             const comp = comparator(binary.order);
-            const oKeys = Object.keys(o).sort(comp);
-            console.log(binary.name);
-            oKeys.forEach(oKey => {
-                const value = o[oKey];
-                if (typeof value === "object") {
-                    console.log(`    ${oKey}:`);
-                    for (let i in value) {
-                        console.log(`        ${i}: ${value[i]}`);
-                    }
-                }
-                else {
-                    console.log(`    ${oKey}: ${value}`);
-                }
-            });
+            print(comp, binary.name, binary.options);
             console.log("");
         });
     }
@@ -135,6 +121,7 @@ module.exports = {
 function comparator(order) {
     order = [
         "version",
+        "install",
         "port",
         "portOffset",
         "debugPort",
@@ -184,4 +171,32 @@ function getErrors(errors, id) {
         }
     });
     return errors;
+}
+
+function print(comp, key, value, indent = "") {
+    if (value === null) {
+        return;
+    }
+    if (Array.isArray(value)) {
+        if (!value.length) {
+            return;
+        }
+        console.log(`${indent}${key}:`);
+        for (let i in value) {
+            console.log(`${indent}    ${value[i]}`);
+        }
+    }
+    else if (typeof value === "object") {
+        const keys = Object.keys(value).sort(comp);
+        if (!keys.length) {
+            return;
+        }
+        console.log(`${indent}${key}:`);
+        keys.forEach(k => {
+            print(comp, k, value[k], indent + "    ");
+        });
+    }
+    else {
+        console.log(`${indent}${key}: ${value}`);
+    }
 }

@@ -151,11 +151,15 @@ async function install(conf) {
         util.printOptions(options, names, order, binariesDir);
         await util.queryContinue();
 
-        await removeOldDirs(binaries);
-        await downloadBinaries(binaries);
-        await extractArchives(binaries);
-        await runExecutions(binaries);
-        await createStartScripts(binaries);
+        //Remove binaries that shouldnt be installed. 
+        //They are just includes as ancillary options to other binaries.
+        const bins = binaries.filter(b => b.options.install !== false);
+
+        await removeOldDirs(bins);
+        await downloadBinaries(bins);
+        await extractArchives(bins);
+        await runExecutions(bins);
+        await createStartScripts(bins);
 
         return options;
     }

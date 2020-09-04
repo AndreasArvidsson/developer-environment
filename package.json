@@ -26,6 +26,7 @@
         "tar": "^6.0.5",
         "ajv": "^6.12.4",
         "owp.rm": "^1.1.1",
-        "owp.progress-promise": "^1.0.2"
+        "owp.progress-promise": "^1.0.2",
+        "xml2js": "^0.4.23"
     }
 }

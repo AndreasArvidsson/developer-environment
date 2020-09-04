@@ -61,15 +61,15 @@ function getBinary(conf, id, currentDir) {
             if (!wildflyConf) {
                 throw Error(`${id} without ${wildfly.id}`);
             }
-            const wildflyInstance = wildfly(wildflyConf, currentDir, {});
-            return cons(c, wildflyInstance);
+            const wfDir = wildfly.getDir(wildflyConf);
+            return cons(c, wfDir);
 
         case wildfly.id: {
             const adapterConf = conf[keycloakWildflyAdapter.id];
             const jdbcConf = conf[jdbcPostgresql.id];
             const postgresqlConf = conf[postgresql.id];
             const misc = {
-                adapter: adapterConf ? keycloakWildflyAdapter(adapterConf, currentDir) : null,
+                adapter: adapterConf ? keycloakWildflyAdapter(adapterConf) : null,
                 jdbc: jdbcConf ? jdbcPostgresql(jdbcConf, currentDir) : null,
                 postgresql: postgresqlConf ? postgresql(postgresqlConf, currentDir) : null
             };

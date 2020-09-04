@@ -1,78 +1,67 @@
 const path = require("path");
-const fsPromises = require("fs").promises;
 const util = require("../util");
 const Jboss = require("../Jboss");
 
-module.exports = (conf, currentDir, { adapter, jdbc, postgresql }) => {
+module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
     const opt = util.getOptions(conf, defaultConf, schema);
-    const filename = `wildfly-${opt.version}.zip`;
+    const filename = getFilename(opt);
     const dir = util.getDir(filename);
     const jboss = new Jboss(path.resolve(currentDir, dir));
+    const mem = opt.memory;
 
     const executions = [
         {
             name: `Add user: ${opt.username} / ${opt.password}`,
-            callback: () => jboss.addUser(opt.username, opt.password)
+            callback: () => 
+                jboss.addUser(opt.username, opt.password)
         },
         {
             name: "Increase memory in standalone.conf",
-            callback: () => {
-                return new Promise((resolve, reject) => {
-                    const mem = opt.memory;
-                    const confFile = path.resolve(currentDir, dir, "bin/standalone.conf");
-                    fsPromises.readFile(confFile, "utf-8")
-                        .then(res => {
-                            res = res.replace("-Xms64m", `-Xms${mem.Xms}`);
-                            res = res.replace("-Xmx512m", `-Xmx${mem.Xmx}`);
-                            res = res.replace("-XX:MetaspaceSize=96M", `-XX:MetaspaceSize=${mem.MetaspaceSize}`);
-                            res = res.replace("-XX:MaxMetaspaceSize=256m", `-XX:MaxMetaspaceSize=${mem.MaxMetaspaceSize}`);
-                            fsPromises.writeFile(confFile, res)
-                                .then(resolve)
-                                .catch(reject);
-                        })
-                        .catch(reject);
-                });
-            }
+            callback: () =>
+                jboss.updateStandaloneConf({
+                    "-Xms64m": `-Xms${mem.Xms}`,
+                    "-Xmx512m": `-Xmx${mem.Xmx}`,
+                    "-XX:MetaspaceSize=96M": `-XX:MetaspaceSize=${mem.MetaspaceSize}`,
+                    "-XX:MaxMetaspaceSize=256m": `-XX:MaxMetaspaceSize=${mem.MaxMetaspaceSize}`
+                })
         }
     ];
+
+    const depNames = opt.secureDeployments.names || [];
+    if (adapter) {
+        executions.push({
+            name: "Install Keycloak adapter",
+            callback: () => 
+                jboss.installAdapter()
+        });
+
+        depNames.forEach(name => {
+            executions.push({
+                name: `Secure deployment: ${name}`,
+                callback: () => 
+                    jboss.secureDeployment(name, opt.secureDeployments.properties)
+            });
+        });
+    }
+    else if (depNames.length) {
+        throw Error(`Wildfly secure deployments without Keycloak adapter`);
+    }
 
     Object.keys(opt.systemProperties).forEach(k => {
         executions.push({
             name: `Add system property: ${k}`,
-            callback: () => jboss.addSystemProperty(k, opt.systemProperties[k])
+            callback: () => 
+                jboss.addSystemProperty(k, opt.systemProperties[k])
         });
     });
 
-    if (adapter) {
-        executions.push({
-            name: "Install Keycloak adapter",
-            callback: () => jboss.installAdapter()
-        });
-    }
-
     if (jdbc) {
         const j = jdbc.jdbc;
-
         executions.push(
             {
                 name: "Install JDBC module",
-                callback: (binariesDir) => {
-                    return installModule(
-                        path.resolve(currentDir, dir, "modules/org/postgresql/main"),
-                        path.resolve(binariesDir, jdbc.filename),
-                        jdbc.filename,
-                        `<?xml version="1.0" ?>
-<module xmlns="urn:jboss:module:1.3" name="${j.moduleName}">
-    <resources>
-        <resource-root path="${jdbc.filename}"/>
-    </resources>
-    <dependencies>
-        <module name="javax.api"/>
-        <module name="javax.transaction.api"/>
-    </dependencies>
-</module>`
-                    );
-                }
+                callback: (binariesDir) =>
+                    installModule(jboss, binariesDir, jdbc.filename, j.moduleName)
             },
             {
                 name: `Add JDBC driver: ${j.name}`,
@@ -82,28 +71,32 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql }) => {
                         "driver-module-name": j.moduleName,
                         "driver-xa-datasource-class-name": j.xaDataSourceClass
                     })
-            });
-
-        if (opt.datasource) {
-            if (!postgresql) {
-                throw Error(`Wildfly datasource without postgresql`);
             }
-            executions.push({
-                name: `Add datasource: ${jdbc.name}`,
-                callback: () => {
-                    const p = postgresql.options;
-                    return jboss.addDataSource(opt.datasource, {
-                        "jndi-name": `java:/${opt.datasource}`,
-                        "driver-name": jdbc.name,
-                        "connection-url": `jdbc:${jdbc.name}://localhost:${p.port}/${p.db}`,
-                        "user-name": p.username,
-                        password: p.password,
-                        "valid-connection-checker-class-name": "org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker",
-                        "validate-on-match": true
-                    });
-                }
-            });
+        );
+    }
+
+    if (opt.datasource) {
+        if (!jdbc) {
+            throw Error(`Wildfly datasource without jdbcPostgresql`);
         }
+        if (!postgresql) {
+            throw Error(`Wildfly datasource without postgresql`);
+        }
+        const j = jdbc.jdbc;
+        const p = postgresql.options;
+        executions.push({
+            name: `Add datasource: ${opt.datasource}`,
+            callback: () =>
+                jboss.addDataSource(opt.datasource, {
+                    "jndi-name": `java:/${opt.datasource}`,
+                    "driver-name": j.name,
+                    "connection-url": `jdbc:${j.name}://localhost:${p.port}/${p.db}`,
+                    "user-name": p.username,
+                    password: p.password,
+                    "valid-connection-checker-class-name": "org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker",
+                    "validate-on-match": true
+                })
+        });
     }
 
     return {
@@ -117,7 +110,8 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql }) => {
         order: [
             "datasource",
             "memory",
-            "systemProperties"
+            "systemProperties",
+            "secureDeployments"
         ],
         startScript: {
             filename: "startWildfly.sh",
@@ -129,6 +123,12 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql }) => {
 };
 
 module.exports.id = "wildfly";
+
+module.exports.getDir = function (conf) {
+    const opt = util.getOptions(conf, defaultConf, schema);
+    const filename = getFilename(opt);
+    return util.getDir(filename);
+}
 
 const defaultConf = {
     portOffset: 0,
@@ -142,7 +142,8 @@ const defaultConf = {
         MetaspaceSize: "96M",
         MaxMetaspaceSize: "1024m",
     },
-    systemProperties: {}
+    systemProperties: {},
+    secureDeployments: {}
 };
 
 const schema = {
@@ -166,26 +167,37 @@ const schema = {
                 MaxMetaspaceSize: { type: "string" }
             }
         },
-        systemProperties: { type: "object" }
+        systemProperties: { type: "object" },
+        secureDeployments: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+                names: { type: "array" },
+                properties: { type: "object" }
+            }
+        }
     }
 };
 
 schema.required = Object.keys(schema.properties);
 schema.properties.memory.required = Object.keys(schema.properties.memory.properties);
 
-function installModule(dir, binarySource, binaryFilename, xml) {
-    return new Promise((resolve, reject) => {
-        const xmlFile = path.resolve(dir, "module.xml");
-        const binaryTarget = path.resolve(dir, binaryFilename);
-        fsPromises.mkdir(dir, { recursive: true })
-            .then(() => {
-                Promise.all([
-                    fsPromises.writeFile(xmlFile, xml),
-                    fsPromises.copyFile(binarySource, binaryTarget)
-                ])
-                    .then(resolve)
-                    .catch(reject);
-            })
-            .catch(reject);
-    })
+function installModule(jboss, binariesDir, filename, moduleName) {
+    return jboss.installModule(
+        path.resolve(binariesDir, filename),
+        `<?xml version="1.0" ?>
+<module xmlns="urn:jboss:module:1.3" name="${moduleName}">
+    <resources>
+        <resource-root path="${filename}"/>
+    </resources>
+    <dependencies>
+        <module name="javax.api"/>
+        <module name="javax.transaction.api"/>
+    </dependencies>
+</module>`
+    );
+}
+
+function getFilename(opt) {
+    return `wildfly-${opt.version}.zip`;
 }
