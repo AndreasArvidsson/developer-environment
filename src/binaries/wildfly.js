@@ -39,7 +39,7 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
             executions.push({
                 name: `Secure deployment: ${name}`,
                 callback: () => 
-                    jboss.secureDeployment(name, opt.secureDeployments.properties)
+                    jboss.secureDeployment(name, opt.secureDeployments.properties || {})
             });
         });
     }
