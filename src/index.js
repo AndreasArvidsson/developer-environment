@@ -179,7 +179,21 @@ async function keycloakExport(conf) {
     }
 }
 
+async function deploy(conf) {
+    console.log("\n**** Deploy war files to Wildfly **** \n");
+    const deploy = require("./deploy");
+    try {
+        await deploy(conf, currentDir);
+        console.log("- DONE!");
+        process.exit(0);
+    }
+    catch (err) {
+        handleError(err);
+    }
+}
+
 module.exports = {
     install,
-    keycloakExport
+    keycloakExport,
+    deploy
 };

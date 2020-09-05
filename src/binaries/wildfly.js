@@ -6,7 +6,10 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = util.getDir(filename);
-    const jboss = new Jboss(path.resolve(currentDir, dir));
+    const jboss = new Jboss({
+        jbossHome: path.resolve(currentDir, dir),
+        portOffset: opt.portOffset
+    });
     const mem = opt.memory;
 
     const executions = [

@@ -5,10 +5,22 @@ const fsPromises = require("fs").promises;
 
 module.exports = class Jboss {
 
-    constructor(jbossHome) {
+    constructor(props = {}) {
+        const {
+            jbossHome,
+            port,
+            portOffset = 0,
+            host = "localhost",
+            username,
+            password
+        } = props;
         this.jbossHome = jbossHome;
         this.dir = path.resolve(jbossHome, "bin");
         this.cli = path.resolve(this.dir, "jboss-cli.sh");
+        this.port = port !== undefined ? port : 9990 + portOffset;
+        this.host = host;
+        this.username = username;
+        this.password = password;
     }
 
     file(file) {
@@ -21,8 +33,35 @@ module.exports = class Jboss {
         return exec(`sh ${this.cli} --commands=embed-server,${commands}`);
     }
 
-    shutdown(portOffset = 0) {
-        return exec(`sh ${this.cli} -c controller=localhost:${9990 + portOffset} command=:shutdown`);
+    commandConnect(...commands) {
+        commands = commands.map(c => `"${c}"`).join(",");
+        const parts = [
+            "sh",
+            this.cli,
+            "-c",
+            `--controller=${this.host}:${this.port}`,
+            `--commands=${commands}`
+        ];
+        if (this.username) {
+            parts.push(`--user=${this.username}`);
+        }
+        if (this.password) {
+            parts.push(`--password=${this.password}`);
+        }
+        return exec(parts.join(" "));
+    }
+
+    undeploy(name, keepContent = false) {
+        const kc = keepContent ? " --keep-content" : "";
+        return this.commandConnect(`undeploy ${name}${kc}`);
+    }
+
+    deploy(path, name, runtimeName) {
+        return this.commandConnect(`deploy ${path} --name=${name} --runtime-name=${runtimeName}`);
+    }
+
+    shutdown() {
+        return this.commandConnect(":shutdown");
     }
 
     addUser(username, password) {
@@ -83,6 +122,23 @@ module.exports = class Jboss {
             content = content.replace(i, replace[i]);
         }
         await fsPromises.writeFile(confFile, content);
+    }
+
+    async getDeploymentInfo() {
+        const r = await this.commandConnect("deployment-info");
+        let parts = r.stdout.split("\n");
+        const i = parts.findIndex(r => r.startsWith("NAME")) + 1;
+        parts = parts.slice(i).map(r => r.trim()).filter(Boolean);
+        return parts.map(r => {
+            const parts = r.split(" ").filter(Boolean);
+            return {
+                name: parts[0],
+                runtimeName: parts[1],
+                persistent: parts[2] === "true",
+                enabled: parts[3] === "true",
+                status: parts[4]
+            };
+        });
     }
 
 }

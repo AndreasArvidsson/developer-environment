@@ -7,7 +7,10 @@ module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = util.getDir(filename);
-    const jboss = new Jboss(path.resolve(currentDir, dir));
+    const jboss = new Jboss({
+        jbossHome: path.resolve(currentDir, dir),
+        portOffset: opt.portOffset
+    });
 
     const executions = [
         {
@@ -19,7 +22,7 @@ module.exports = (conf, currentDir) => {
     if (opt.jsonFile) {
         executions.push(
             getMigrationExecution(path.resolve(currentDir, dir), opt, true),
-            getStopServiceExecution(jboss, opt)
+            getStopServiceExecution(jboss)
         );
     }
 
@@ -48,7 +51,10 @@ module.exports.export = (conf, currentDir) => {
     const opt = util.getOptions(conf, exportDefaultConf);
     const filename = getFilename(opt);
     const dir = path.resolve(currentDir, util.getDir(filename));
-    const jboss = new Jboss(path.resolve(currentDir, dir));
+    const jboss = new Jboss({
+        jbossHome: path.resolve(currentDir, dir),
+        portOffset: opt.portOffset
+    });
     return {
         name: "Keycloak-export",
         executions: [
@@ -85,13 +91,13 @@ function getMigrationExecution(dir, opt, doImport) {
     }
 }
 
-function getStopServiceExecution(jboss, opt) {
+function getStopServiceExecution(jboss) {
     return {
         name: "Stop service",
         callback: () => {
             //Wait 1sec for service to stop.
             return util.wait(
-                jboss.shutdown(opt.portOffset),
+                jboss.shutdown(),
                 1
             );
         }
