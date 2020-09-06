@@ -3,12 +3,12 @@ const exec = require("util").promisify(require("child_process").exec);
 const util = require("../util/util");
 const Jboss = require("../util/Jboss");
 
-module.exports = (conf, currentDir) => {
-    const opt = util.getOptions(conf, defaultConf, schema);
+module.exports = (conf, cwd) => {
+    const opt = util.getOptions(conf, getDefaultConf(), getSchema());
     const filename = getFilename(opt);
     const dir = util.getDir(filename);
     const jboss = new Jboss({
-        jbossHome: path.resolve(currentDir, dir),
+        jbossHome: path.resolve(cwd, dir),
         portOffset: opt.portOffset
     });
 
@@ -21,7 +21,7 @@ module.exports = (conf, currentDir) => {
 
     if (opt.jsonFile) {
         executions.push(
-            getMigrationExecution(path.resolve(currentDir, dir), opt, true),
+            getMigrationExecution(path.resolve(cwd, dir), opt, true),
             getStopServiceExecution(jboss)
         );
     }
@@ -39,7 +39,8 @@ module.exports = (conf, currentDir) => {
         ],
         startScript: {
             filename: "startKeycloak.sh",
-            content: `sh ${dir}/bin/standalone.sh`
+            content: `${util.BASH_DIR}\n`
+                + `sh $DIR/${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
         }
     };
@@ -47,29 +48,30 @@ module.exports = (conf, currentDir) => {
 
 module.exports.id = "keycloak";
 
-module.exports.export = (conf, currentDir) => {
-    const opt = util.getOptions(conf, exportDefaultConf);
+module.exports.export = (conf) => {
+    const opt = util.getOptions(conf, getDefaultConf(true), getSchema(true));
     const filename = getFilename(opt);
-    const dir = path.resolve(currentDir, util.getDir(filename));
+    const dir = util.getDir(filename);
+    const jbossHome = path.resolve(opt.cwd, dir);
     const jboss = new Jboss({
-        jbossHome: path.resolve(currentDir, dir),
+        jbossHome,
         portOffset: opt.portOffset
     });
     return {
         name: "Keycloak-export",
         executions: [
-            getMigrationExecution(dir, opt, false),
+            getMigrationExecution(jbossHome, opt, false),
             getStopServiceExecution(jboss, opt)
         ]
     };
 }
 
-function getMigrationExecution(dir, opt, doImport) {
+function getMigrationExecution(jbossHome, opt, doImport) {
     const action = doImport ? "import" : "export";
     return {
         name: `Start service with json ${action}`,
         callback: () => {
-            const standalone = path.resolve(dir, "bin/standalone.sh");
+            const standalone = path.resolve(jbossHome, "bin/standalone.sh");
             let cmd = `sh ${standalone} `
                 + `-Djboss.socket.binding.port-offset=${opt.portOffset} `
                 + `-Dkeycloak.migration.action=${action} `
@@ -108,29 +110,43 @@ function getFilename(opt) {
     return `keycloak-${opt.version}.zip`;
 }
 
-const defaultConf = {
-    username: "admin",
-    password: "password",
-    portOffset: 1,
-    jsonFile: null
-};
-
-const exportDefaultConf = {
-    ...defaultConf,
-    jsonFile: "realm.json"
-};
-
-const schema = {
-    $id: module.exports.id,
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        version: { type: "string" },
-        username: { type: "string" },
-        password: { type: "string" },
-        portOffset: { type: "number" },
-        jsonFile: { type: ["string", "null"] }
+function getDefaultConf(isExport) {
+    const res = {
+        portOffset: 1
+    };
+    if (isExport) {
+        res.jsonFile = "realm.json";
+        res.cwd = process.cwd();
     }
-};
+    else {
+        res.jsonFile = null;
+        res.username = "admin";
+        res.password = "password";
+    }
+    return res;
+}
 
-schema.required = Object.keys(schema.properties);
+function getSchema(isExport) {
+    const res = {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+            version: { type: "string" },
+            portOffset: { type: "number" }
+        }
+    };
+    if (isExport) {
+        res.$id = "keycloak-export";
+        res.properties.jsonFile = { type: "string" };
+        res.properties.cwd = { type: "string" };
+        res.properties.realm = { type: "string" };
+    }
+    else {
+        res.$id = module.exports.id;
+        res.properties.jsonFile = { type: ["string", "null"] };
+        res.properties.username = { type: "string" };
+        res.properties.password = { type: "string" };
+    }
+    res.required = Object.keys(res.properties);
+    return res;
+}

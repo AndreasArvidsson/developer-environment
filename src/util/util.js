@@ -3,6 +3,7 @@ const Ajv = require("ajv");
 const fsPromises = require("fs").promises;
 
 module.exports = {
+    BASH_DIR: 'DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"',
 
     comparator: (order) => {
         order = [

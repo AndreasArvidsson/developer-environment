@@ -2,13 +2,13 @@ const path = require("path");
 const fsPromises = require("fs").promises;
 const countdown = require("../util/countdown");
 
-module.exports = (binaries, scriptsDir) => {
+module.exports = (binaries, cwd) => {
     const bins = binaries.filter(binary => binary.startScript);
     if (!bins.length) {
         return Promise.resolve();
     }
     const promises = bins.map(binary => {
-        const file = path.resolve(scriptsDir, binary.startScript.filename);
+        const file = path.resolve(cwd, binary.startScript.filename);
         const content = `#!/bin/bash\n`
             + `echo "------ Starting: ${binary.name} ------"\necho\n`
             + binary.startScript.content;

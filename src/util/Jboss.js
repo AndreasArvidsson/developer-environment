@@ -127,8 +127,11 @@ module.exports = class Jboss {
     async getDeploymentInfo() {
         const r = await this.commandConnect("deployment-info");
         let parts = r.stdout.split("\n");
-        const i = parts.findIndex(r => r.startsWith("NAME")) + 1;
-        parts = parts.slice(i).map(r => r.trim()).filter(Boolean);
+        const i = parts.findIndex(r => r.startsWith("NAME"));
+        if (i < 0) {
+            return [];
+        }
+        parts = parts.slice(i + 1).map(r => r.trim()).filter(Boolean);
         return parts.map(r => {
             const parts = r.split(" ").filter(Boolean);
             return {

@@ -5,7 +5,7 @@ const fsPromises = require("fs").promises;
 const exec = require("util").promisify(require("child_process").exec);
 const util = require("../util/util");
 
-module.exports = (conf, currentDir) => {
+module.exports = (conf, cwd) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = "pgsql";
@@ -20,8 +20,9 @@ module.exports = (conf, currentDir) => {
 
         startScript: {
             filename: "startPostgresql.sh",
-            content: `${dir}/bin/pg_ctl`
-                + ` -D ${dir}/data`
+            content: `${util.BASH_DIR}\n` 
+                + `$DIR/${dir}/bin/pg_ctl`
+                + ` -D $DIR/${dir}/data`
                 + ` -o "-p ${opt.port}"`
                 + ` start`
                 + `\nread -r -d ''`
@@ -31,14 +32,14 @@ module.exports = (conf, currentDir) => {
             {
                 name: "Initializing database cluster in /data dir",
                 callback: () => {
-                    return initializeDatabaseCluster(currentDir, dir, opt);
+                    return initializeDatabaseCluster(cwd, dir, opt);
                 }
             },
             {
                 name: "Start service",
                 callback: () => {
-                    const pgctl = path.resolve(currentDir, dir, "bin/pg_ctl");
-                    const dataDir = path.resolve(currentDir, dir, "data");
+                    const pgctl = path.resolve(cwd, dir, "bin/pg_ctl");
+                    const dataDir = path.resolve(cwd, dir, "data");
                     return new Promise((resolve, reject) => {
                         exec(`${pgctl} -D ${dataDir} -o "-p ${opt.port}" start`)
                             .catch(reject);
@@ -50,15 +51,15 @@ module.exports = (conf, currentDir) => {
             {
                 name: `Create database: ${opt.db}`,
                 callback: () => {
-                    const psql = path.resolve(currentDir, dir, "bin/psql");
+                    const psql = path.resolve(cwd, dir, "bin/psql");
                     return exec(`${psql} -c "CREATE DATABASE ${opt.db}" "user=${opt.username} dbname=postgres password=${opt.password}"`);
                 }
             },
             {
                 name: "Stop service",
                 callback: () => {
-                    const pgctl = path.resolve(currentDir, dir, "bin/pg_ctl");
-                    const dataDir = path.resolve(currentDir, dir, "data");
+                    const pgctl = path.resolve(cwd, dir, "bin/pg_ctl");
+                    const dataDir = path.resolve(cwd, dir, "data");
                     return exec(`${pgctl} -D ${dataDir} stop`);
                 }
             }
@@ -83,9 +84,9 @@ const schema = {
     properties: {
         version: { type: "string" },
         install: { type: "boolean" },
+        port: { type: "number" },
         username: { type: "string" },
         password: { type: "string" },
-        port: { type: "number" },
         db: { type: "string" }
     }
 };
@@ -106,8 +107,8 @@ function getFilename(opt) {
     }
 }
 
-function initializeDatabaseCluster(currentDir, dir, opt) {
-    const homeDir = path.resolve(currentDir, dir);
+function initializeDatabaseCluster(cwd, dir, opt) {
+    const homeDir = path.resolve(cwd, dir);
     const initdb = path.resolve(homeDir, "bin/initdb");
     const dataDir = path.resolve(homeDir, "data");
     const pwFile = path.resolve(homeDir, "tmpPassFile");

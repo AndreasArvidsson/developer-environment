@@ -26,13 +26,13 @@ module.exports = {
         return comp(a.name, b.name);
     },
 
-    get: function (conf, currentDir) {
+    get: function (conf, cwd, binariesDir) {
         const binaries = [];
         const options = {};
         const names = {};
         const order = {};
         for (let i in conf) {
-            const binary = getBinary(conf, i, currentDir);
+            const binary = getBinary(conf, i, cwd, binariesDir);
             //Don't include binaries that shouldn't be installed. 
             //They are just includes as ancillary options to other binaries.
             if (binary.options.install !== false) {
@@ -49,7 +49,7 @@ module.exports = {
     }
 };
 
-function getBinary(conf, id, currentDir) {
+function getBinary(conf, id, cwd, binariesDir) {
     const cons = constructors[id];
     if (!cons) {
         throw Error(`Unknown binary '${id}'`);
@@ -63,8 +63,8 @@ function getBinary(conf, id, currentDir) {
             if (!mongoConf) {
                 throw Error(`${id} without ${mongodb.id}`);
             }
-            const mongoInstance = mongodb(mongoConf, currentDir);
-            return cons(c, currentDir, mongoInstance);
+            const mongoInstance = mongodb(mongoConf, cwd);
+            return cons(c, cwd, mongoInstance);
 
         case keycloakWildflyAdapter.id:
             const wildflyConf = conf[wildfly.id];
@@ -80,13 +80,13 @@ function getBinary(conf, id, currentDir) {
             const postgresqlConf = conf[postgresql.id];
             const misc = {
                 adapter: adapterConf ? keycloakWildflyAdapter(adapterConf) : null,
-                jdbc: jdbcConf ? jdbcPostgresql(jdbcConf, currentDir) : null,
-                postgresql: postgresqlConf ? postgresql(postgresqlConf, currentDir) : null
+                jdbc: jdbcConf ? jdbcPostgresql(jdbcConf, cwd) : null,
+                postgresql: postgresqlConf ? postgresql(postgresqlConf, cwd) : null
             };
-            return cons(c, currentDir, misc);
+            return cons(c, cwd, binariesDir, misc);
         }
 
         default:
-            return cons(c, currentDir);
+            return cons(c, cwd);
     }
 }

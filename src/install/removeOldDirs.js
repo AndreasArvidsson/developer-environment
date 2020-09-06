@@ -2,13 +2,13 @@ const path = require("path");
 const rm = require("owp.rm");
 const countdown = require("../util/countdown");
 
-module.exports = (binaries, currentDir) => {
+module.exports = (binaries, cwd) => {
     const bins = binaries.filter(binary => binary.dir);
     if (!bins.length) {
         return Promise.resolve();
     }
     const promises = bins.map(binary => {
-        const dir = path.resolve(currentDir, binary.dir);
+        const dir = path.resolve(cwd, binary.dir);
         return rm(dir, { recursive: true, force: true });
     });
     return countdown.promises("Remove old directories", promises, (i, res) => {

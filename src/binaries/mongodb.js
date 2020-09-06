@@ -3,7 +3,7 @@ const os = require("os");
 const fsPromises = require("fs").promises;
 const util = require("../util/util");
 
-module.exports = (conf, currentDir) => {
+module.exports = (conf, cwd) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const { dir, filename, osName } = getNames(opt);
 
@@ -17,8 +17,9 @@ module.exports = (conf, currentDir) => {
 
         startScript: {
             filename: "startMongodb.sh",
-            content: `${dir}/bin/mongod`
-                + ` --dbpath=${dir}/data`
+            content: `${util.BASH_DIR}\n`
+                + `$DIR/${dir}/bin/mongod`
+                + ` --dbpath=$DIR/${dir}/data`
                 + ` --port ${opt.port}`
         },
 
@@ -26,7 +27,7 @@ module.exports = (conf, currentDir) => {
             {
                 name: "Creating database /data directory",
                 callback: () => {
-                    const dataDir = path.resolve(currentDir, dir, "data");
+                    const dataDir = path.resolve(cwd, dir, "data");
                     return fsPromises.mkdir(dataDir);
                 }
             }

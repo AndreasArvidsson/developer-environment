@@ -4,14 +4,14 @@ const wildfly = require("./binaries/wildfly");
 const util = require("./util/util");
 const Jboss = require("./util/Jboss");
 
-module.exports = async (conf, currentDir) => {
+module.exports = async (conf) => {
     console.log("\n**** Deploy war files to Wildfly **** \n");
 
-    const opt = util.getOptions(conf, null, schema);
+    const opt = util.getOptions(conf, defaultConf, schema);
     const wfDir = wildfly.getDir({ version: opt.version });
 
     const jboss = new Jboss({
-        jbossHome: path.resolve(currentDir, wfDir),
+        jbossHome: path.resolve(opt.cwd, wfDir),
         host: opt.host,
         port: opt.port,
         username: opt.username,
@@ -32,6 +32,26 @@ module.exports = async (conf, currentDir) => {
     process.exit(0);
 };
 
+const defaultConf = {
+    cwd: process.cwd()
+};
+
+const schema = {
+    $id: "deploy",
+    type: "object",
+    additionalProperties: false,
+    required: ["cwd", "version", "dir"],
+    properties: {
+        cwd: { type: "string" },
+        version: { type: "string" },
+        dir: { type: "string" },
+        host: { type: "string" },
+        port: { type: ["number", "string"] },
+        username: { type: "string" },
+        password: { type: "string" }
+    }
+};
+
 async function deployFile(jboss, deployments, f) {
     console.log("---------")
     console.log(`path: ${f.path}`);
@@ -41,21 +61,6 @@ async function deployFile(jboss, deployments, f) {
     await jboss.deploy(f.path, f.name, f.runtimeName);
     console.log("---------\n");
 }
-
-const schema = {
-    $id: "deploy",
-    type: "object",
-    additionalProperties: false,
-    required: ["version", "dir"],
-    properties: {
-        version: { type: "string" },
-        dir: { type: "string" },
-        host: { type: "string" },
-        port: { type: ["number", "string"] },
-        username: { type: "string" },
-        password: { type: "string" }
-    }
-};
 
 async function undeploy(jboss, deployments, file) {
     let deployment = deployments.find(d => d.name === file.name);

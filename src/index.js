@@ -1,11 +1,8 @@
-const path = require("path");
-
-const currentDir = path.resolve();
 
 async function install(conf) {
     try {
         const install = require("./install/install");
-        return install(conf, currentDir);
+        return await install(conf);
     }
     catch (err) {
         handleError(err);
@@ -15,7 +12,7 @@ async function install(conf) {
 async function keycloakExport(conf) {
     try {
         const keycloakExport = require("./keycloakExport");
-        await keycloakExport(conf, currentDir);
+        await keycloakExport(conf);
     }
     catch (err) {
         handleError(err);
@@ -25,7 +22,7 @@ async function keycloakExport(conf) {
 async function deploy(conf) {
     try {
         const deploy = require("./deploy");
-        await deploy(conf, currentDir);
+        await deploy(conf);
     }
     catch (err) {
         handleError(err);
@@ -35,7 +32,7 @@ async function deploy(conf) {
 async function undeployDisabled(conf) {
     try {
         const undeployDisabled = require("./undeployDisabled");
-        await undeployDisabled(conf, currentDir);
+        await undeployDisabled(conf);
     }
     catch (err) {
         handleError(err);

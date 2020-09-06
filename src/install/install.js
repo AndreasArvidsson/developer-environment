@@ -8,65 +8,61 @@ const runExecutions = require("./runExecutions");
 const createStartScripts = require("./createStartScripts");
 const cloneRepositories = require("./cloneRepositories");
 
-module.exports = async (conf, currentDir) => {
-    util.validate(schema, conf);
+module.exports = async (conf) => {
+    const opt = util.getOptions(conf, defaultConf, schema);
+    const binariesDir = path.resolve(opt.cwd, "[binaries]");
+    const { binaries, options, names, order }
+        = Binaries.get(opt.binaries, opt.cwd, binariesDir);
 
-    const params = getParams(conf, currentDir);
-    printParameters(currentDir, params);
+    printParameters(opt.cwd, options, names, order, opt.repositories);
     await util.queryContinue();
 
-    const { binaries, repositories, options } = params;
-
     if (binaries.length) {
-        const { binariesDir, scriptsDir } = params;
-        await removeOldDirs(binaries, currentDir, binariesDir);
+        await removeOldDirs(binaries, opt.cwd);
         await downloadBinaries(binaries, binariesDir);
-        await extractArchives(binaries, currentDir, binariesDir);
-        await runExecutions(binaries, binariesDir);
-        await createStartScripts(binaries, scriptsDir);
+        await extractArchives(binaries, opt.cwd, binariesDir);
+        await runExecutions(binaries);
+        await createStartScripts(binaries, opt.cwd);
     }
 
-    if (repositories.length) {
-        await cloneRepositories(repositories);
+    if (opt.repositories.length) {
+        await cloneRepositories(opt.repositories, opt.cwd);
     }
 
     return options;
 };
 
+const defaultConf = {
+    cwd: process.cwd(),
+    binaries: {},
+    repositories: []
+};
+
 const schema = {
+    $id: "install",
     type: "object",
     additionalProperties: false,
     properties: {
-        binariesDir: { type: "string" },
-        scriptsDir: { type: "string" },
+        cwd: { type: "string" },
         binaries: { type: "object" },
         repositories: {
             type: "array",
             items: {
-                type: "string"
+                type: "object",
+                additionalProperties: false,
+                required: ["url"],
+                properties: {
+                    url: { type: "string" },
+                    cwd: { type: "string" }
+                }
             }
         }
     }
 };
 
-function getParams(conf, currentDir) {
-    const repositories = conf.repositories || [];
-    const binariesDir = conf.binariesDir || path.resolve(currentDir, "[binaries]");
-    const scriptsDir = conf.scriptsDir || currentDir;
-    const res = Binaries.get(conf.binaries || {}, currentDir);
-    return {
-        ...res,
-        repositories,
-        binariesDir,
-        scriptsDir
-    }
-}
-
-function printParameters(currentDir, { options, names, order, binariesDir, scriptsDir, repositories }) {
+function printParameters(cwd, options, names, order, repositories) {
     console.log("- Parameters\n");
-    console.log(`Installation dir: ${currentDir}`);
-    console.log(`Binaries dir: ${binariesDir}`);
-    console.log(`Scripts dir: ${scriptsDir}\n`);
+    console.log(`Installation dir: ${cwd}\n`);
 
     const binaries = Object.keys(options).map(key => ({
         name: names[key],
@@ -83,7 +79,7 @@ function printParameters(currentDir, { options, names, order, binariesDir, scrip
     });
 
     if (repositories.length) {
-        util.print(null, "Repositories", repositories);
+        util.print(null, "Repositories", repositories.map(r => r.url));
         console.log("");
     }
 }

@@ -3,14 +3,14 @@ const wildfly = require("./binaries/wildfly");
 const util = require("./util/util");
 const Jboss = require("./util/Jboss");
 
-module.exports = async (conf, currentDir) => {
+module.exports = async (conf) => {
     console.log("\n**** Un-deploy disabled war files from Wildfly **** \n");
 
-    const opt = util.getOptions(conf, null, schema);
+    const opt = util.getOptions(conf, defaultConf, schema);
     const wfDir = wildfly.getDir({ version: opt.version });
 
     const jboss = new Jboss({
-        jbossHome: path.resolve(currentDir, wfDir),
+        jbossHome: path.resolve(opt.cwd, wfDir),
         host: opt.host,
         port: opt.port,
         username: opt.username,
@@ -29,12 +29,17 @@ module.exports = async (conf, currentDir) => {
     process.exit(0);
 };
 
+const defaultConf = {
+    cwd: process.cwd()
+};
+
 const schema = {
-    $id: "deploy",
+    $id: "undeployDisabled",
     type: "object",
     additionalProperties: false,
-    required: ["version"],
+    required: ["cwd", "version"],
     properties: {
+        cwd: { type: "string" },
         version: { type: "string" },
         host: { type: "string" },
         port: { type: ["number", "string"] },

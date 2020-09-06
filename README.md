@@ -18,12 +18,12 @@ npm install developer-environment --save
 const devEnv = require("developer-environment");
 
 const conf = {
-    binariesDir: "[binaries]",              //Optional | <= Default value
+    cwd: "envDir",                          //Optional | Default value => process.cwd()
     binaries: {
         wildfly: {
             version: "20.0.1.Final",        //Required
-            portOffset: 0,                  //Optional | <= Default value
             debugPort: 8787,                //Optional | <= Default value
+            portOffset: 0,                  //Optional | <= Default value
             username: "admin",              //Optional | <= Default value
             password: "password",           //Optional | <= Default value
             datasource: "MyDS",             //Optional | Default value => null
@@ -35,6 +35,12 @@ const conf = {
             },            
             systemProperties: {             //Optional | Default value => { }
                 "keycloak.url": "http://localhost:8081/auth" 
+            },
+            secureDeployments: {
+                names: [ "my-app.war" ],    //Optional | Default value => [ ]
+                properties: {               //Optional | Default value => { }
+                    "auth-server-url": `http://localhost:8081/auth`
+                }
             }
         },
         keycloak: {
@@ -58,6 +64,7 @@ const conf = {
         },
         postgresql: {
             version: "10.5-1",              //Required
+            install: true,                  //Optional | <= Default value
             port: 5432,                     //Optional | <= Default value
             username: "admin",              //Optional | <= Default value
             password: "password",           //Optional | <= Default value
@@ -66,7 +73,13 @@ const conf = {
         jdbcPostgresql: {
             version: "42.2.5"               //Required
         }
-    }
+    },
+    repositories: [                         //Optional | Default value => [ ]
+        {
+            url: "git@github.com:AndreasArvidsson/developer-environment.git",
+            cwd: __dirname
+        }
+    ]
 };
 
 devEnv.install(conf)
@@ -97,6 +110,35 @@ Export current keycloak realm settings as json file.
 devEnv.keycloakExport({
     version: "11.0.0",                  //Required
     realm: "MyRealm",                   //Required
+    cwd: "envDir",                      //Optional | Default value => process.cwd()
+    portOffset: 1,                      //Optional | <= Default value
     jsonFile: "realm.json"              //Optional | <= Default value
+});
+```
+
+### Deploy to wildfly
+Deploy all war files in specified dir to Wildfly.
+```javascript
+devEnv.deploy({
+    version: "11.0.0",                  //Required
+    dir: "my-app",                      //Required
+    cwd: "envDir",                      //Optional | Default value => process.cwd()
+    host: "localhost",                  //Optional | <= Default value
+    port: 9990,                         //Optional | <= Default value
+    username: "user",                   //Optional | Default value => null
+    password: "password"                //Optional | Default value => null
+});
+```
+
+### Un-deploy disabled
+Un-deploy all disabled Wildfly deployments.
+```javascript
+devEnv.deploy({
+    version: "11.0.0",                  //Required
+    cwd: "envDir",                      //Optional | Default value => process.cwd()
+    host: "localhost",                  //Optional | <= Default value
+    port: 9990,                         //Optional | <= Default value
+    username: "user",                   //Optional | Default value => null
+    password: "password"                //Optional | Default value => null
 });
 ```

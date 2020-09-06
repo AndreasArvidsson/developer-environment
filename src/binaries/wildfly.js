@@ -2,12 +2,12 @@ const path = require("path");
 const util = require("../util/util");
 const Jboss = require("../util/Jboss");
 
-module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
+module.exports = (conf, cwd, binariesDir, { adapter, jdbc, postgresql } = {}) => {
     const opt = util.getOptions(conf, defaultConf, schema);
     const filename = getFilename(opt);
     const dir = util.getDir(filename);
     const jboss = new Jboss({
-        jbossHome: path.resolve(currentDir, dir),
+        jbossHome: path.resolve(cwd, dir),
         portOffset: opt.portOffset
     });
     const mem = opt.memory;
@@ -63,7 +63,7 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
         executions.push(
             {
                 name: "Install JDBC module",
-                callback: (binariesDir) =>
+                callback: () =>
                     installModule(jboss, binariesDir, jdbc.filename, j.moduleName)
             },
             {
@@ -118,7 +118,8 @@ module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
         ],
         startScript: {
             filename: "startWildfly.sh",
-            content: `sh ${dir}/bin/standalone.sh`
+            content: `${util.BASH_DIR}\n`
+                + `sh $DIR/${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
                 + ` --debug ${opt.debugPort}`
         }

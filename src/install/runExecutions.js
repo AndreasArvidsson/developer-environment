@@ -1,7 +1,7 @@
 const ProgressPromise = require("owp.progress-promise");
 const countdown = require("../util/countdown");
 
-module.exports = (binaries, binariesDir) => {
+module.exports = (binaries) => {
     const bins = binaries.filter(binary => binary.executions);
     const executions = [];
     const promises = [];
@@ -14,7 +14,7 @@ module.exports = (binaries, binariesDir) => {
             });
             promises.push(new ProgressPromise((resolve, reject, progress) => {
                 callbacks.push(() => {
-                    const exPromise = execution.callback(binariesDir);
+                    const exPromise = execution.callback();
                     if (exPromise.progress) {
                         exPromise.progress(progress);
                     }
