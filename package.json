@@ -22,11 +22,11 @@
         "url": "https://github.com/AndreasArvidsson/developer-environment/issues"
     },
     "dependencies": {
+        "owp.rm": "^1.1.1",
+        "owp.progress-promise": "^1.0.2",
         "extract-zip": "^2.0.1",
         "tar": "^6.0.5",
         "ajv": "^6.12.4",
-        "owp.rm": "^1.1.1",
-        "owp.progress-promise": "^1.0.2",
         "xml2js": "^0.4.23"
     }
 }

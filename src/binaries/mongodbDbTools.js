@@ -1,8 +1,8 @@
 const path = require("path");
 const os = require("os");
 const rm = require("owp.rm");
-const util = require("../util");
-const mv = require("../mv");
+const util = require("../util/util");
+const mv = require("../util/mv");
 
 module.exports = (conf, currentDir, mongodb) => {
     const opt = util.getOptions(conf, defaultConf, schema);

@@ -1,30 +1,44 @@
-const path = require("path");
-const fsPromises = require("fs").promises;
-const Ajv = require("ajv");
 const ProgressPromise = require("owp.progress-promise");
-
-const binComparator = comparator(
-    ["Wildfly", "Keycloak", "Keycloak Wildfly Adapter", "MongoDB", "MongoDB DB Tools", "PostgreSQL", "JDBC PostgreSQL"]
-);
-const binaryComparator = (a, b) => {
-    return binComparator(a.name, b.name);
-}
-
-function validate(schema, obj) {
-    const ajv = new Ajv();
-    if (!ajv.validate(schema, obj)) {
-        throw {
-            message: "Invalid options/configuration",
-            errors: getErrors(ajv.errors, schema.$id)
-        };
-    }
-}
+const Ajv = require("ajv");
+const fsPromises = require("fs").promises;
 
 module.exports = {
-    binaryComparator,
-    validate,
 
-    getOptions: (conf, defaultConf, schema) => {
+    comparator: (order) => {
+        order = [
+            "version",
+            "install",
+            "port",
+            "portOffset",
+            "debugPort",
+            "username",
+            "password"
+        ].concat(order);
+        return (a, b) => {
+            if (order.includes(a) && order.includes(b)) {
+                return order.indexOf(a) - order.indexOf(b);
+            }
+            else if (order.includes(a)) {
+                return -1;
+            }
+            else if (order.includes(b)) {
+                return 1;
+            }
+            return a.localeCompare(b);
+        }
+    },
+
+    validate: (schema, obj) => {
+        const ajv = new Ajv();
+        if (!ajv.validate(schema, obj)) {
+            throw {
+                message: "Invalid options/configuration",
+                errors: getErrors(ajv.errors, schema.$id)
+            };
+        }
+    },
+
+    getOptions: function (conf, defaultConf, schema) {
         if (typeof conf === "string") {
             conf = {
                 version: conf
@@ -32,7 +46,7 @@ module.exports = {
         }
         const res = Object.assign({}, defaultConf, conf);
         if (schema) {
-            validate(schema, res);
+            this.validate(schema, res);
         }
         return res;
     },
@@ -101,56 +115,35 @@ module.exports = {
         console.log("");
     },
 
-    printOptions: (options, names, order, currentDir, binariesDir, repositories) => {
-        console.log("- Parameters\n");
-        console.log(`Installation dir: ${currentDir}`);
-        console.log(`Binaries dir: ${binariesDir}\n`);
-
-        const binaries = Object.keys(options).map(key => ({
-            name: names[key],
-            options: options[key],
-            order: order[key]
-        }));
-
-        binaries.sort(binaryComparator);
-
-        binaries.forEach(binary => {
-            const comp = comparator(binary.order);
-            print(comp, binary.name, binary.options);
-            console.log("");
-        });
-
-        if (repositories.length) {
-            print(null, "Repositories", repositories);
-            console.log("");
+    print: function (comp, key, value, indent = "") {
+        if (value === null) {
+            return;
+        }
+        if (Array.isArray(value)) {
+            if (!value.length) {
+                return;
+            }
+            console.log(`${indent}${key}:`);
+            for (let i in value) {
+                console.log(`${indent}    ${value[i]}`);
+            }
+        }
+        else if (typeof value === "object") {
+            const keys = Object.keys(value).sort(comp || undefined);
+            if (!keys.length) {
+                return;
+            }
+            console.log(`${indent}${key}:`);
+            keys.forEach(k => {
+                this.print(comp, k, value[k], indent + "    ");
+            });
+        }
+        else {
+            console.log(`${indent}${key}: ${value}`);
         }
     }
 
 };
-
-function comparator(order) {
-    order = [
-        "version",
-        "install",
-        "port",
-        "portOffset",
-        "debugPort",
-        "username",
-        "password"
-    ].concat(order);
-    return (a, b) => {
-        if (order.includes(a) && order.includes(b)) {
-            return order.indexOf(a) - order.indexOf(b);
-        }
-        else if (order.includes(a)) {
-            return -1;
-        }
-        else if (order.includes(b)) {
-            return 1;
-        }
-        return a.localeCompare(b);
-    }
-}
 
 const keypress = () => {
     return new Promise(resolve => {
@@ -182,32 +175,4 @@ function getErrors(errors, id) {
         }
     });
     return errors;
-}
-
-function print(comp, key, value, indent = "") {
-    if (value === null) {
-        return;
-    }
-    if (Array.isArray(value)) {
-        if (!value.length) {
-            return;
-        }
-        console.log(`${indent}${key}:`);
-        for (let i in value) {
-            console.log(`${indent}    ${value[i]}`);
-        }
-    }
-    else if (typeof value === "object") {
-        const keys = Object.keys(value).sort(comp);
-        if (!keys.length) {
-            return;
-        }
-        console.log(`${indent}${key}:`);
-        keys.forEach(k => {
-            print(comp, k, value[k], indent + "    ");
-        });
-    }
-    else {
-        console.log(`${indent}${key}: ${value}`);
-    }
 }

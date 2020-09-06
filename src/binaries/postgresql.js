@@ -1,9 +1,9 @@
+const rm = require("owp.rm");
 const path = require("path");
 const os = require("os");
 const fsPromises = require("fs").promises;
 const exec = require("util").promisify(require("child_process").exec);
-const rm = require("owp.rm");
-const util = require("../util");
+const util = require("../util/util");
 
 module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);

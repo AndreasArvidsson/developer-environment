@@ -1,3 +1,4 @@
+const util = require("../util/util");
 const wildfly = require("./wildfly");
 const keycloak = require("./keycloak");
 const keycloakWildflyAdapter = require("./keycloakWildflyAdapter");
@@ -5,7 +6,6 @@ const jdbcPostgresql = require("./jdbcPostgresql");
 const postgresql = require("./postgresql");
 const mongodb = require("./mongodb");
 const mongodbDatabaseTools = require("./mongodbDbTools");
-const util = require("../util");
 
 const constructors = {
     [wildfly.id]: wildfly,
@@ -17,26 +17,36 @@ const constructors = {
     [mongodbDatabaseTools.id]: mongodbDatabaseTools
 };
 
-module.exports = {
+const comp = util.comparator(
+    ["Wildfly", "Keycloak", "Keycloak Wildfly Adapter", "MongoDB", "MongoDB DB Tools", "PostgreSQL", "JDBC PostgreSQL"]
+);
 
-    get: (conf, currentDir) => {
+module.exports = {
+    comparator: (a, b) => {
+        return comp(a.name, b.name);
+    },
+
+    get: function (conf, currentDir) {
         const binaries = [];
         const options = {};
         const names = {};
         const order = {};
         for (let i in conf) {
             const binary = getBinary(conf, i, currentDir);
-            binaries.push(binary);
+            //Don't include binaries that shouldn't be installed. 
+            //They are just includes as ancillary options to other binaries.
+            if (binary.options.install !== false) {
+                binaries.push(binary);
+            }
             options[i] = binary.options;
             names[i] = binary.name;
             order[i] = binary.order || [];
         }
 
-        binaries.sort(util.binaryComparator);
+        binaries.sort(this.comparator);
 
         return { binaries, options, names, order };
     }
-
 };
 
 function getBinary(conf, id, currentDir) {

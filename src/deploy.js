@@ -1,17 +1,21 @@
 const path = require("path");
 const fsPromises = require("fs").promises;
 const wildfly = require("./binaries/wildfly");
-const util = require("./util");
-const Jboss = require("./Jboss");
+const util = require("./util/util");
+const Jboss = require("./util/Jboss");
 
 module.exports = async (conf, currentDir) => {
+    console.log("\n**** Deploy war files to Wildfly **** \n");
+
     const opt = util.getOptions(conf, null, schema);
     const wfDir = wildfly.getDir({ version: opt.version });
 
     const jboss = new Jboss({
         jbossHome: path.resolve(currentDir, wfDir),
         host: opt.host,
-        port: opt.port
+        port: opt.port,
+        username: opt.username,
+        password: opt.password
     });
 
     const files = await findWarFiles(path.resolve(opt.dir));
@@ -23,6 +27,9 @@ module.exports = async (conf, currentDir) => {
     for (let i = 0; i < files.length; ++i) {
         await deployFile(jboss, deployments, files[i]);
     }
+
+    console.log("- DONE!");
+    process.exit(0);
 };
 
 async function deployFile(jboss, deployments, f) {
@@ -42,9 +49,11 @@ const schema = {
     required: ["version", "dir"],
     properties: {
         version: { type: "string" },
+        dir: { type: "string" },
         host: { type: "string" },
-        port: { type: "number" },
-        dir: { type: "string" }
+        port: { type: ["number", "string"] },
+        username: { type: "string" },
+        password: { type: "string" }
     }
 };
 
@@ -76,7 +85,9 @@ async function printAndWait(files) {
         console.log("  ", f.name);
     });
     console.log();
-    await util.queryContinue();
+    if (files.length) {
+        await util.queryContinue();
+    }
 }
 
 async function findWarFiles(dir) {

@@ -1,6 +1,6 @@
 const path = require("path");
-const util = require("../util");
-const Jboss = require("../Jboss");
+const util = require("../util/util");
+const Jboss = require("../util/Jboss");
 
 module.exports = (conf, currentDir, { adapter, jdbc, postgresql } = {}) => {
     const opt = util.getOptions(conf, defaultConf, schema);

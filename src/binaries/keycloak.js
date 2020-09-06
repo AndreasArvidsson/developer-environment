@@ -1,7 +1,7 @@
 const path = require("path");
 const exec = require("util").promisify(require("child_process").exec);
-const util = require("../util");
-const Jboss = require("../Jboss");
+const util = require("../util/util");
+const Jboss = require("../util/Jboss");
 
 module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);

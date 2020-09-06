@@ -1,4 +1,4 @@
-const util = require("../util");
+const util = require("../util/util");
 
 module.exports = (conf, wildflyDir) => {
     const opt = util.getOptions(conf, null, schema);

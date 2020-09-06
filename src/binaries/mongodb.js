@@ -1,7 +1,7 @@
 const path = require("path");
 const os = require("os");
 const fsPromises = require("fs").promises;
-const util = require("../util");
+const util = require("../util/util");
 
 module.exports = (conf, currentDir) => {
     const opt = util.getOptions(conf, defaultConf, schema);

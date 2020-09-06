@@ -1,6 +1,6 @@
 const path = require("path");
 const fsPromises = require("fs").promises;
-const util = require("../util");
+const util = require("../util/util");
 
 module.exports = (conf) => {
     const opt = util.getOptions(conf, null, schema);
