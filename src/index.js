@@ -1,7 +1,8 @@
-const path = require("path");
-const fsPromises = require("fs").promises;
 const rm = require("owp.rm");
 const ProgressPromise = require("owp.progress-promise");
+const path = require("path");
+const fsPromises = require("fs").promises;
+const exec = require("util").promisify(require("child_process").exec);
 const extract = require("./extract");
 const download = require("./download");
 const countdown = require("./countdown");
@@ -135,31 +136,45 @@ function createStartScripts(binaries) {
     );
 }
 
-function handleError(err) {
-    console.error("Error:");
-    console.error(err);
-    process.exit(-1);
+async function cloneRepositories(repos) {
+    const promises = repos.map(r =>
+        exec(`git clone ${r}`)
+    );
+    return countdown.promises("Clone repositories", promises, (i) =>
+        repos[i]
+    );
 }
 
 async function install(conf) {
-    if (conf.binariesDir) {
-        binariesDir = conf.binariesDir;
-    }
     try {
-        const { binaries, options, names, order } = Binaries.get(conf.binaries, currentDir);
+        util.validate(installSchema, conf);
 
-        util.printOptions(options, names, order, binariesDir);
+        const repositories = conf.repositories || [];
+        if (conf.binariesDir) {
+            binariesDir = conf.binariesDir;
+        }
+
+        const res = Binaries.get(conf.binaries || {}, currentDir);
+        const { binaries, options, names, order } = res;
+
+        util.printOptions(options, names, order, currentDir, binariesDir, repositories);
         await util.queryContinue();
 
-        //Remove binaries that shouldnt be installed. 
+        //Remove binaries that shouldn't be installed. 
         //They are just includes as ancillary options to other binaries.
         const bins = binaries.filter(b => b.options.install !== false);
 
-        await removeOldDirs(bins);
-        await downloadBinaries(bins);
-        await extractArchives(bins);
-        await runExecutions(bins);
-        await createStartScripts(bins);
+        if (bins.length) {
+            await removeOldDirs(bins);
+            await downloadBinaries(bins);
+            await extractArchives(bins);
+            await runExecutions(bins);
+            await createStartScripts(bins);
+        }
+
+        if (repositories.length) {
+            await cloneRepositories(repositories);
+        }
 
         return options;
     }
@@ -197,3 +212,24 @@ module.exports = {
     keycloakExport,
     deploy
 };
+
+const installSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        binariesDir: { type: "string" },
+        binaries: { type: "object" },
+        repositories: {
+            type: "array",
+            items: {
+                type: "string"
+            }
+        }
+    }
+};
+
+function handleError(err) {
+    console.error("Error:");
+    console.error(err);
+    process.exit(-1);
+}

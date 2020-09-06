@@ -10,8 +10,19 @@ const binaryComparator = (a, b) => {
     return binComparator(a.name, b.name);
 }
 
+function validate(schema, obj) {
+    const ajv = new Ajv();
+    if (!ajv.validate(schema, obj)) {
+        throw {
+            message: "Invalid options/configuration",
+            errors: getErrors(ajv.errors, schema.$id)
+        };
+    }
+}
+
 module.exports = {
     binaryComparator,
+    validate,
 
     getOptions: (conf, defaultConf, schema) => {
         if (typeof conf === "string") {
@@ -21,13 +32,7 @@ module.exports = {
         }
         const res = Object.assign({}, defaultConf, conf);
         if (schema) {
-            const ajv = new Ajv();
-            if (!ajv.validate(schema, res)) {
-                throw {
-                    message: "Invalid options/configuration",
-                    errors: getErrors(ajv.errors, schema.$id)
-                };
-            }
+            validate(schema, res);
         }
         return res;
     },
@@ -96,9 +101,9 @@ module.exports = {
         console.log("");
     },
 
-    printOptions: (options, names, order, binariesDir) => {
+    printOptions: (options, names, order, currentDir, binariesDir, repositories) => {
         console.log("- Parameters\n");
-        console.log(`Installation dir: ${path.resolve()}`);
+        console.log(`Installation dir: ${currentDir}`);
         console.log(`Binaries dir: ${binariesDir}\n`);
 
         const binaries = Object.keys(options).map(key => ({
@@ -114,6 +119,11 @@ module.exports = {
             print(comp, binary.name, binary.options);
             console.log("");
         });
+
+        if (repositories.length) {
+            print(null, "Repositories", repositories);
+            console.log("");
+        }
     }
 
 };
@@ -164,6 +174,7 @@ function timeout(callback, secondsLeft, progress) {
 }
 
 function getErrors(errors, id) {
+    id = id || "";
     errors.forEach(e => {
         e.dataPath = `${id}${e.dataPath}`;
         if (typeof e.params === "object") {
