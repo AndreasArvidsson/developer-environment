@@ -119,7 +119,7 @@ module.exports = (conf, cwd, binariesDir, { adapter, jdbc, postgresql } = {}) =>
         startScript: {
             filename: "startWildfly.sh",
             content: `${util.BASH_DIR}\n`
-                + `sh $DIR/${dir}/bin/standalone.sh`
+                + `$DIR/${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
                 + ` --debug ${opt.debugPort}`
         }

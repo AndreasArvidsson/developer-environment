@@ -12,7 +12,11 @@ module.exports = (binaries, cwd) => {
         const content = `#!/bin/bash\n`
             + `echo "------ Starting: ${binary.name} ------"\necho\n`
             + binary.startScript.content;
-        return fsPromises.writeFile(file, content)
+        return new Promise(async resolve => {
+            await fsPromises.writeFile(file, content)
+            await fsPromises.chmod(file, "777");
+            resolve();
+        });
     });
     return countdown.promises("Create start scripts", promises, (i, res) =>
         bins[i].name + (res !== null ? ` => ${bins[i].startScript.filename}` : "")

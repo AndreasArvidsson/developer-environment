@@ -40,7 +40,7 @@ module.exports = (conf, cwd) => {
         startScript: {
             filename: "startKeycloak.sh",
             content: `${util.BASH_DIR}\n`
-                + `sh $DIR/${dir}/bin/standalone.sh`
+                + `$DIR/${dir}/bin/standalone.sh`
                 + ` -Djboss.socket.binding.port-offset=${opt.portOffset}`
         }
     };
@@ -83,10 +83,10 @@ function getMigrationExecution(jbossHome, opt, doImport) {
             else {
                 cmd += `-Dkeycloak.migration.realmName=${opt.realm}`;
             }
-            //Wait 10sec for service to start.
+            //Wait 15sec for service to start.
             return util.waitIgnoreThen(
                 exec(cmd),
-                10,
+                15,
                 path.basename(opt.jsonFile)
             );
         }
