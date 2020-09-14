@@ -11,6 +11,9 @@
         "environment",
         "setup"
     ],
+    "scripts": {
+        "pub": "node node_modules/publish-flatten --flatten src --strip scripts"
+    },
     "author": "Andreas Arvidsson",
     "license": "MIT",
     "homepage": "https://github.com/AndreasArvidsson/developer-environment",
@@ -28,5 +31,8 @@
         "tar": "^6.0.5",
         "ajv": "^6.12.4",
         "xml2js": "^0.4.23"
+    },
+    "devDependencies": {
+        "publish-flatten": "^1.0.3"
     }
 }
