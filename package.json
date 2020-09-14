@@ -12,7 +12,7 @@
         "setup"
     ],
     "scripts": {
-        "pub": "node node_modules/publish-flatten --flatten src --strip scripts"
+        "pub": "node node_modules/publish-flatten --flatten src --strip scripts --strip devDependencies"
     },
     "author": "Andreas Arvidsson",
     "license": "MIT",

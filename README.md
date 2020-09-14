@@ -1,5 +1,5 @@
 # Developer environment
-Easy setup of developer environment.
+Easy installation of developer environment.
 
 ## Description
 1. Specify which binaries you require
