@@ -1,7 +1,7 @@
 {
     "name": "developer-environment",
     "description": "Easy setup of developer environment",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "main": "src/index.js",
     "files": [
         "src/*"
@@ -26,7 +26,7 @@
     },
     "dependencies": {
         "owp.rm": "^1.1.1",
-        "owp.progress-promise": "^1.0.2",
+        "owp.progress-promise": "^1.0.3",
         "extract-zip": "^2.0.1",
         "tar": "^6.0.5",
         "ajv": "^6.12.4",
